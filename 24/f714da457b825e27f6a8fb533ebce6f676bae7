@@ -1,0 +1,28 @@
+README.md
+  s_5b76806014c8b0::t_3df8e7ab105aed 199-200
+  s_5b76806014c8b0::t_b02ac4f229e625 128-129
+  s_5b76806014c8b0::t_968a5576df5476 75
+  s_5b76806014c8b0::t_70624e24f8f36c 66
+  s_5b76806014c8b0::t_a6799e19776eef 148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "24f714da457b825e27f6a8fb533ebce6f676bae7",
+  "prompts": {},
+  "humans": {
+    "h_c00f8716a1efc5": {
+      "author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_5b76806014c8b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e9d8180-d8ca-4cba-b3d6-615046b4f6d1",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
