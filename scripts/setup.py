@@ -188,47 +188,39 @@ def get_project_id(ls_client, project_name: str) -> str:
     return str(project.id)
 
 
-def delete_existing_evaluators(api_key: str) -> None:
-    """Remove any existing chat-lc-lite-demo evaluators to avoid duplicates.
+def delete_existing_evaluators(api_key: str, project_id: str) -> None:
+    """Remove THIS project's existing chat-lc-lite evaluators to avoid duplicates.
 
-    Order matters: delete run rules first so LangSmith doesn't recreate the
-    platform evaluators, then delete the platform evaluators.
+    Scoped to project_id via each run rule's session_id. In a SHARED workspace,
+    other presenters' projects use the same feedback-key display names
+    (security_advice, scope_adherence, ...), so a name-only match would delete
+    their evaluators too. We therefore only touch run rules whose session_id is
+    THIS project. The previous workspace-wide platform-evaluator sweep was
+    removed for the same reason — any orphaned evaluator definitions are inert.
     """
     our_keys = {ev["feedback_key"] for ev in EVALUATORS}
 
-    # 1. Delete run rules first
     resp = requests.get(
         "https://api.smith.langchain.com/api/v1/runs/rules",
         headers=_ls_headers(api_key),
     )
-    if resp.status_code == 200:
-        for rule in resp.json():
-            name = rule.get("display_name", "")
-            if name in our_keys or name.startswith("chat-lc-lite-demo-"):
-                requests.delete(
-                    f"https://api.smith.langchain.com/api/v1/runs/rules/{rule['id']}",
-                    headers=_ls_headers(api_key),
-                )
+    if resp.status_code != 200:
+        return
 
-    # 2. Then delete platform evaluators (run twice to catch any orphans)
-    for _ in range(2):
-        resp = requests.get(
-            "https://api.smith.langchain.com/v1/platform/evaluators",
-            headers=_ls_headers(api_key),
-        )
-        if resp.status_code != 200:
-            break
-        ids_to_delete = [
-            ev["id"] for ev in resp.json().get("evaluators", [])
-            if ev.get("name", "") in our_keys or ev.get("name", "").startswith("chat-lc-lite-demo-")
-        ]
-        for ev_id in ids_to_delete:
+    deleted = 0
+    for rule in resp.json():
+        # Only touch rules scoped to OUR project — never other presenters'.
+        if rule.get("session_id") != project_id:
+            continue
+        name = rule.get("display_name", "")
+        if name in our_keys or name.startswith("chat-lc-lite-demo-"):
             requests.delete(
-                f"https://api.smith.langchain.com/v1/platform/evaluators/{ev_id}",
+                f"https://api.smith.langchain.com/api/v1/runs/rules/{rule['id']}",
                 headers=_ls_headers(api_key),
             )
-        if ids_to_delete:
-            print(f"  Deleted {len(ids_to_delete)} existing evaluator(s)")
+            deleted += 1
+    if deleted:
+        print(f"  Deleted {deleted} existing evaluator(s) on this project")
 
 
 def create_online_evaluator(api_key: str, ev: dict, project_id: str, model_json: dict) -> str | None:
@@ -293,7 +285,7 @@ def setup_online_evaluators(api_key: str) -> list:
     project_id = get_project_id(ls_client, PROJECT_NAME)
     model_json = ChatAnthropic(model="claude-haiku-4-5-20251001").to_json()
 
-    delete_existing_evaluators(api_key)
+    delete_existing_evaluators(api_key, project_id)
 
     our_rule_ids = []
     for ev in EVALUATORS:

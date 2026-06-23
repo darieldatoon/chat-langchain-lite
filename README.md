@@ -308,12 +308,17 @@ Run after the demo to reset everything for the next presenter:
 python -m scripts.cleanup
 ```
 
-This does five things:
+This does six things:
 1. **Resets dataset to original 3 examples** — deletes all examples and re-uploads the canonical 3, removing anything Engine added
 2. **Deletes CI/Engine experiments** — keeps the `baseline-*` seed experiments from `setup.py` (the Haiku-vs-Sonnet "before" reference); CI/CD regenerates before/after experiments on every PR
-3. **Removes Engine-added online evaluators** — uses saved run rule IDs from `.demo_state.json` to delete only evaluators Engine added, leaving the 5 from `setup.py` in place
+3. **Removes Engine-added online evaluators** — uses saved run rule IDs from `.demo_state.json` to delete only evaluators Engine added, leaving the 6 from `setup.py` in place
 4. **Re-seeds Context Hub to the buggy baseline** — re-pushes the seed `AGENTS.md` and demo skills, restoring the buggy prompt if it was fixed in the Context Hub UI during the demo (a code/dataset reset can't touch Context Hub)
-5. **Resets main to the `baseline` tag** — force-resets to remove Engine's merged PR, restoring the buggy agent state
+5. **Resets main to the `baseline` tag** — force-resets to remove Engine's merged PR, restoring the buggy agent state. Because the LangSmith deployment auto-updates on push to `main`, this also redeploys the buggy agent.
+6. **Rolls a fresh deployment revision** — set `LANGSMITH_DEPLOYMENT_ID` in `.env` and cleanup runs `langgraph deploy --deployment-id … --no-wait` so the **live** agent re-pulls the re-seeded buggy prompt (the deployed agent reads its prompt only at startup, so re-seeding Context Hub alone doesn't affect the running revision). Unset → it prints instructions to roll a revision from the Deployments UI.
+
+> **The `baseline` tag must point at a *deployable* commit** (one that includes `langgraph.json` and the `pyproject.toml` build config) — i.e. the deployment-ready-but-still-buggy state of `main`, **not** a pre-deployment commit. Otherwise step 5 would redeploy a commit that fails to build. Re-cut it with `git tag -f baseline <sha> && git push -f origin baseline` whenever you land infra changes that should survive resets.
+
+The Streamlit UI needs no reset — each viewer gets a fresh session on load.
 
 After cleanup, the demo is ready to run again — no need to re-run `setup.py`.
 

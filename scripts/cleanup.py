@@ -171,12 +171,17 @@ def delete_engine_evaluators(api_key: str) -> None:
 
 # ── Optional: delete the entire LangSmith project ─────────────────────────────
 
-def delete_project() -> None:
-    """Delete project + datasets + every chat-lc-lite-* Context Hub repo.
+def delete_project(nuke_context_hub: bool = False) -> None:
+    """Delete project + datasets (+ optionally every chat-lc-lite-* Context Hub repo).
 
     Removes all traces, online evaluators on the project, Engine issue state,
-    both demo datasets, and any Context Hub agent / skill whose handle starts
-    with `chat-lc-lite-` (sweep catches leftovers from prior renames).
+    and both demo datasets.
+
+    Context Hub repos are NOT deleted by default: the LIVE LangSmith deployment
+    pulls its system prompt from `chat-lc-lite-agent-<presenter>` at startup, so
+    deleting it would break the running agent (get_prompt() returns ""). Pass
+    nuke_context_hub=True (CLI `--nuke-context-hub`) only when fully
+    re-provisioning, and re-run `scripts.setup` + redeploy afterwards.
     """
     from langsmith import Client
 
@@ -221,29 +226,35 @@ def delete_project() -> None:
             print(f"  Dataset delete failed for '{d.name}': {e}")
 
     # 3. Context Hub — sweep every chat-lc-lite-* agent and skill (catches
-    # the current ones plus any leftovers from prior renames).
-    print(f"\n[*] Deleting Context Hub repos (chat-lc-lite-* sweep)...")
-    api_key = os.environ.get("LANGSMITH_API_KEY", "")
-    workspace_id = os.environ.get("LANGSMITH_WORKSPACE_ID", "")
-    H = {"x-api-key": api_key}
-    if workspace_id:
-        H["X-Tenant-Id"] = workspace_id
-    for repo_type, delete_fn in (("agent", ls_client.delete_agent), ("skill", ls_client.delete_skill)):
-        r = requests.get(
-            f"https://api.smith.langchain.com/v1/platform/hub/repos?repo_type={repo_type}",
-            headers=H,
-        )
-        if r.status_code != 200:
-            continue
-        for repo in r.json().get("repos", []):
-            handle = repo.get("repo_handle", "")
-            if handle.startswith("chat-lc-lite-") or handle in {"release-notes-skill", "support-ticket-triage-skill", "pr-review-summary-skill"}:
-                try:
-                    delete_fn(handle)
-                    print(f"  Deleted {repo_type} '{handle}'.")
-                except Exception as e:
-                    if not any(s in str(e).lower() for s in ("not found", "404")):
-                        print(f"  {repo_type} delete failed for '{handle}': {e}")
+    # the current ones plus any leftovers from prior renames). GUARDED: the
+    # live deployment depends on the agent's Context Hub repo, so this is
+    # opt-in only.
+    if not nuke_context_hub:
+        print(f"\n[*] Keeping Context Hub repos (live deployment depends on them).")
+        print(f"    Re-run with --nuke-context-hub to delete them when fully re-provisioning.")
+    else:
+        print(f"\n[*] Deleting Context Hub repos (chat-lc-lite-* sweep)...")
+        api_key = os.environ.get("LANGSMITH_API_KEY", "")
+        workspace_id = os.environ.get("LANGSMITH_WORKSPACE_ID", "")
+        H = {"x-api-key": api_key}
+        if workspace_id:
+            H["X-Tenant-Id"] = workspace_id
+        for repo_type, delete_fn in (("agent", ls_client.delete_agent), ("skill", ls_client.delete_skill)):
+            r = requests.get(
+                f"https://api.smith.langchain.com/v1/platform/hub/repos?repo_type={repo_type}",
+                headers=H,
+            )
+            if r.status_code != 200:
+                continue
+            for repo in r.json().get("repos", []):
+                handle = repo.get("repo_handle", "")
+                if handle.startswith("chat-lc-lite-") or handle in {"release-notes-skill", "support-ticket-triage-skill", "pr-review-summary-skill"}:
+                    try:
+                        delete_fn(handle)
+                        print(f"  Deleted {repo_type} '{handle}'.")
+                    except Exception as e:
+                        if not any(s in str(e).lower() for s in ("not found", "404")):
+                            print(f"  {repo_type} delete failed for '{handle}': {e}")
 
     # Clear the saved run-rule IDs from state — those IDs no longer exist
     try:
@@ -340,6 +351,40 @@ def reset_context_hub() -> None:
         print(f"  Context Hub reset failed (non-fatal): {e}")
 
 
+# ── Refresh the live deployment ───────────────────────────────────────────────
+
+def trigger_deployment_redeploy() -> None:
+    """Roll a new deployment revision so the live agent re-pulls the buggy prompt.
+
+    The deployed agent reads its system prompt from Context Hub ONCE at startup
+    (agent.agent.SYSTEM_PROMPT = get_prompt() at import). Re-seeding Context Hub
+    in reset_context_hub() therefore does NOT affect the already-running agent.
+    Resetting main to baseline auto-redeploys only if main actually moved (an
+    Engine PR was merged); if the prompt was merely fixed in the Context Hub UI,
+    main is unchanged and nothing restarts the agent. This step forces a fresh
+    revision either way so the next demo starts from the buggy prompt.
+
+    Set LANGSMITH_DEPLOYMENT_ID in .env to enable; otherwise it prints manual
+    instructions (roll a revision from the LangSmith Deployments UI).
+    """
+    deployment_id = os.getenv("LANGSMITH_DEPLOYMENT_ID", "").strip()
+    print(f"\n[*] Refreshing the live deployment so the agent re-pulls the buggy prompt...")
+    if not deployment_id:
+        print("  LANGSMITH_DEPLOYMENT_ID not set — skipping automatic redeploy.")
+        print("  Roll a new revision manually: LangSmith → Deployments → your")
+        print("  deployment → New revision (so the running agent re-pulls Context Hub).")
+        return
+    try:
+        subprocess.run(
+            ["langgraph", "deploy", "--deployment-id", deployment_id, "--no-wait"],
+            check=False,
+        )
+        print(f"  Triggered a new revision for deployment {deployment_id} (building async).")
+    except FileNotFoundError:
+        print("  `langgraph` CLI not found (uv tool install 'langgraph-cli[inmem]').")
+        print("  Roll a new revision manually in the LangSmith Deployments UI instead.")
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
@@ -349,6 +394,13 @@ def main():
         action="store_true",
         help="Also delete the LangSmith project (clears all traces and Engine's "
              "per-project issue state). Re-run scripts.setup after.",
+    )
+    parser.add_argument(
+        "--nuke-context-hub",
+        action="store_true",
+        help="With --full, also delete the chat-lc-lite-* Context Hub repos. The "
+             "live deployment depends on the agent's repo, so this is off by "
+             "default; only use when fully re-provisioning (re-run setup + redeploy after).",
     )
     args = parser.parse_args()
 
@@ -365,10 +417,10 @@ def main():
 
     if args.full:
         # --full: nuke everything. Experiments are projects too, so delete
-        # them first; then the main tracing project, datasets, and Context
-        # Hub repos.
+        # them first; then the main tracing project, datasets, and (opt-in)
+        # Context Hub repos.
         delete_ci_experiments()
-        delete_project()
+        delete_project(nuke_context_hub=args.nuke_context_hub)
     else:
         reset_dataset()
         delete_ci_experiments()
@@ -377,8 +429,12 @@ def main():
     reset_main_to_baseline()
 
     if args.full:
-        print(f"\nFull cleanup complete. Run `python -m scripts.setup` before the next demo.")
+        print(f"\nFull cleanup complete. Run `python -m scripts.setup` before the next demo,")
+        print(f"then roll a new deployment revision so the agent picks up the re-seeded prompt.")
     else:
+        # Force the live deployment to re-pull the re-seeded buggy Context Hub
+        # prompt (the running agent only reads it at startup).
+        trigger_deployment_redeploy()
         print(f"\nCleanup complete. Ready for the next demo.")
 
 
