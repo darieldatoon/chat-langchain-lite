@@ -4,6 +4,7 @@ from langchain.agents import create_agent
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessageChunk, ToolMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_core.tracers.context import tracing_v2_enabled
 
 from deepagents.middleware.filesystem import FilesystemMiddleware
 from deepagents.backends.context_hub import ContextHubBackend
@@ -80,9 +81,20 @@ def invoke_agent(question: str, thread_id: str | None = None) -> dict:
 
 
 def stream_agent(question: str, thread_id: str | None = None):
-    """Stream the agent's response text as it's generated."""
-    for chunk, _meta in build_agent().stream(
-        _user_msg(question), _config(thread_id), stream_mode="messages"
-    ):
-        if isinstance(chunk, AIMessageChunk):
-            yield from iter_text(chunk)
+    """Stream the agent's response text as it's generated.
+
+    Yields response text chunks. Returns the LangSmith trace URL for the run
+    as the generator's return value (accessible via StopIteration.value once
+    the stream is exhausted), or None if tracing is disabled or the URL can't
+    be resolved.
+    """
+    with tracing_v2_enabled() as cb:
+        for chunk, _meta in build_agent().stream(
+            _user_msg(question), _config(thread_id), stream_mode="messages"
+        ):
+            if isinstance(chunk, AIMessageChunk):
+                yield from iter_text(chunk)
+        try:
+            return cb.get_run_url()
+        except Exception:
+            return None
