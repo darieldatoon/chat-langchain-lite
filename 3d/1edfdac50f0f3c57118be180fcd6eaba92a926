@@ -1,0 +1,38 @@
+pyproject.toml
+  s_1b4d477a60b558::t_6c231dd213edbf 18
+requirements.txt
+  s_1b4d477a60b558::t_a4888cc01315c7 10
+.gitignore
+  s_1b4d477a60b558::t_3cde9af47e6578 12
+app.py
+  s_1b4d477a60b558::t_5435b524f36475 280-289
+agent/remote.py
+  s_1b4d477a60b558::t_d833a23e3a45ee 1-134
+README.md
+  s_1b4d477a60b558::t_7b60ac75bf5605 91-188
+langgraph.json
+  s_1b4d477a60b558::t_9be5585b0acfe8 1-8
+.env.example
+  s_1b4d477a60b558::t_23a7d46bdf0142 12-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.11",
+  "base_commit_sha": "3d1edfdac50f0f3c57118be180fcd6eaba92a926",
+  "prompts": {},
+  "humans": {
+    "h_c00f8716a1efc5": {
+      "author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_1b4d477a60b558": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ab0a51d-2b36-4a01-b6d4-35dda5647edf",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
