@@ -1,0 +1,40 @@
+app.py
+  s_9db55f24d6ff18::t_40270fd91a8c8f 183
+  s_5b76806014c8b0::t_bec79a3652fae4 24-37
+  s_5b76806014c8b0::t_89033b68f0c1bf 295
+  s_5b76806014c8b0::t_c600f0c3381610 256
+  s_5b76806014c8b0::t_727c8fb1f91c07 181-182,184-189
+  s_5b76806014c8b0::t_d5c82138a2d029 278,281-290,296-299
+agent/agent.py
+  s_5b76806014c8b0::t_acdccdda5ec3c6 7
+  s_5b76806014c8b0::t_bd8723ef91dbb7 84-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.11",
+  "base_commit_sha": "9224a4a73eb5fc1535e1776611ee47c3aa69eca3",
+  "prompts": {},
+  "humans": {
+    "h_c00f8716a1efc5": {
+      "author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_5b76806014c8b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e9d8180-d8ca-4cba-b3d6-615046b4f6d1",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    },
+    "s_9db55f24d6ff18": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "53ad3b16-3595-481b-b478-af4f3be3109a",
+        "model": "gpt-5-mini"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
