@@ -1,0 +1,24 @@
+pyproject.toml
+  s_1b4d477a60b558::t_b313d76464a5ac 20-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.11",
+  "base_commit_sha": "ba86cc3cffd3b66d566dfc5d8472032ed164bd69",
+  "prompts": {},
+  "humans": {
+    "h_c00f8716a1efc5": {
+      "author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_1b4d477a60b558": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ab0a51d-2b36-4a01-b6d4-35dda5647edf",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
