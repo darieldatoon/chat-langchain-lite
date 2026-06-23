@@ -17,3 +17,15 @@ dependencies = [
     "langchain>=1.3.1",
     "langgraph-sdk>=0.1.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+# Explicit package list: this is a flat-layout repo with several top-level
+# packages, so setuptools' auto-discovery refuses to build (it can't guess
+# which dirs are the distribution). The LangSmith Cloud build does
+# `uv pip install -e .`, which triggers that failure; listing packages makes
+# the editable build deterministic.
+[tool.setuptools]
+packages = ["agent", "context", "evals", "scripts", "utils"]
