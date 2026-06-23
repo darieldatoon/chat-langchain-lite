@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.11",
+  "base_commit_sha": "ba9fcc445e08195d1bfc52d351ae98c7deccf0ae",
+  "prompts": {},
+  "humans": {
+    "h_c00f8716a1efc5": {
+      "author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
