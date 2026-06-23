@@ -88,6 +88,104 @@ In your fork: Actions → (if prompted) enable workflows. GitHub disables Action
 
 In LangSmith Engine, connect your LangSmith project (`LANGSMITH_PROJECT`) and your GitHub fork so Engine can read traces and open PRs against your repo.
 
+## Deployment (LangSmith Cloud + Streamlit Community Cloud)
+
+The agent and the chat UI deploy to two different hosts, each with its own
+push-to-`main` continuous deployment:
+
+- **Agent → LangSmith Cloud (LangGraph Platform).** The agent graph
+  (`agent/agent.py:build_agent`) is served as an Agent Server. The deployment
+  config is [`langgraph.json`](langgraph.json).
+- **Streamlit UI → Streamlit Community Cloud.** `app.py` runs as a *thin
+  client*: when `LANGGRAPH_DEPLOYMENT_URL` is set it streams from the deployed
+  agent via the langgraph SDK (`agent/remote.py`) instead of running the agent
+  in-process. The agent's secrets (e.g. `ANTHROPIC_API_KEY`) stay in the
+  LangSmith backend — the UI never sees them.
+
+```
+                push to main
+GitHub repo ───────────────────┬──────────────► LangSmith Cloud  (agent API)
+                               │                        ▲
+                               │                        │ langgraph SDK
+                               └──────────────► Streamlit Community Cloud (UI)
+                                                   calls the agent over HTTPS,
+                                                   authed with LANGSMITH_API_KEY
+```
+
+### Prerequisites
+
+- A LangSmith **Plus plan or above** (required for Cloud agent deployments).
+- A **one-time GitHub OAuth** authorization: a repo/org **owner** installs
+  LangChain's `hosted-langserve` GitHub app via the LangSmith UI. Only needs to
+  be done once per workspace.
+
+### 1. Deploy the agent to LangSmith Cloud
+
+1. In the [LangSmith UI](https://smith.langchain.com) → **Deployments** →
+   **+ New Deployment**.
+2. **Import from GitHub** and select this repository (authorize
+   `hosted-langserve` if prompted).
+3. **Git Branch:** `main`.
+4. **Config file:** `langgraph.json`.
+5. ✅ Check **"Automatically update deployment on push to branch"** — this is the
+   agent's CI/CD: every push to `main` ships a new revision.
+6. **Deployment Type:** Development.
+7. **Environment Variables / Secrets** (set as *secrets* where sensitive):
+
+   | Variable | Why |
+   |----------|-----|
+   | `ANTHROPIC_API_KEY` | the agent's LLM calls (secret) |
+   | `LANGSMITH_API_KEY` | pull the system prompt from Context Hub + tracing (secret) |
+   | `LANGSMITH_WORKSPACE_ID` | workspace scoping |
+   | `LANGSMITH_PROJECT` | tracing project (matches local) |
+   | `LANGSMITH_TRACING` | `true` |
+   | `DEMO_PRESENTER` | per-presenter Context Hub repo / dataset scoping |
+
+8. **Submit.** When the deployment is live, copy its **API URL** — you'll give
+   it to the UI in the next step.
+
+### 2. Deploy the Streamlit UI to Streamlit Community Cloud
+
+1. At [share.streamlit.io](https://share.streamlit.io), sign in with GitHub and
+   create a new app from this repo, main file **`app.py`**, branch **`main`**.
+2. In the app's **Settings → Secrets**, add:
+
+   ```toml
+   LANGGRAPH_DEPLOYMENT_URL = "https://<your-deployment>.us.langgraph.app"
+   LANGSMITH_API_KEY = "lsv2_..."
+   ```
+
+   `LANGSMITH_API_KEY` is what authenticates the UI's calls to the (private)
+   deployment. The Anthropic key is **not** needed here — the agent runs
+   server-side.
+3. Deploy. Streamlit Community Cloud **auto-redeploys on every push to `main`**,
+   so this is the UI's CI/CD.
+
+### CI/CD summary
+
+Both halves redeploy automatically on push to `main` using each platform's
+native mechanism — **no extra GitHub Actions workflow is required**:
+
+| Component | Host | Redeploy trigger |
+|-----------|------|------------------|
+| Agent | LangSmith Cloud | "auto-update on push to branch" checkbox |
+| Streamlit UI | Streamlit Community Cloud | built-in auto-redeploy on push |
+
+> The existing `.github/workflows/evals.yml` is unrelated to deployment — it
+> runs offline evals on labeled PRs and continues to work as before.
+
+### Local development
+
+Leave `LANGGRAPH_DEPLOYMENT_URL` unset and the UI runs the agent in-process
+(`streamlit run app.py`). To exercise the deployed shape locally, run the Agent
+Server with `langgraph dev` and point the UI at it:
+
+```bash
+uv tool install "langgraph-cli[inmem]"   # one-time
+langgraph dev                             # serves the agent at http://127.0.0.1:2024
+LANGGRAPH_DEPLOYMENT_URL=http://127.0.0.1:2024 streamlit run app.py
+```
+
 ## Demo flow
 
 ### Before the demo

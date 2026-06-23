@@ -277,8 +277,16 @@ if user_input:
         response = ""
         trace_url = None
         try:
-            from agent.agent import stream_agent
-            stream = stream_agent(question=user_input, thread_id=st.session_state.thread_id)
+            # When LANGGRAPH_DEPLOYMENT_URL is set, stream from the deployed
+            # agent on LangSmith Cloud (thin SDK client). Otherwise fall back to
+            # building and running the agent in-process for local development.
+            from agent.remote import is_remote_enabled, stream_remote_agent
+
+            if is_remote_enabled():
+                stream = stream_remote_agent(question=user_input, thread_id=st.session_state.thread_id)
+            else:
+                from agent.agent import stream_agent
+                stream = stream_agent(question=user_input, thread_id=st.session_state.thread_id)
             # Iterate manually so we can capture the generator's return value
             # (the LangSmith trace URL) from StopIteration once the stream ends.
             while True:
