@@ -29,3 +29,8 @@ build-backend = "setuptools.build_meta"
 # the editable build deterministic.
 [tool.setuptools]
 packages = ["agent", "context", "evals", "scripts", "utils"]
+
+[dependency-groups]
+dev = [
+    "watchdog>=6.0.0",
+]
