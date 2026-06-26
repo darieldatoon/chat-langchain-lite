@@ -117,7 +117,7 @@ THREADS: list[dict] = [
 
 
 def main():
-    from agent.agent import invoke_agent
+    from chat_langchain_lite.agent import invoke_agent
 
     # --- Single-turn traces ---
     print(f"Generating {len(QUERIES)} single-turn traces...\n")

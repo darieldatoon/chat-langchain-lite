@@ -1,0 +1,18 @@
+# Git hooks for chat-langchain-lite. Install once with `uv run lefthook install`
+# (re-run after editing this file). Every commit formats, lints, and typechecks.
+pre-commit:
+  parallel: false
+  commands:
+    ruff-format:
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+    ruff-lint:
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+    ty:
+      glob: "*.py"
+      # ty needs project context, so check the whole tree (fast) rather than
+      # only the staged files.
+      run: uv run ty check

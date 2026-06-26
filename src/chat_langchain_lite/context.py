@@ -11,9 +11,9 @@ evals.dataset.DEMO_PRESENTER for derivation).
 
 from langsmith import Client
 
-from evals.dataset import DEMO_PRESENTER
+from chat_langchain_lite.config import CONTEXT_HUB_REPO
 
-CONTEXT_HUB_REPO = f"chat-lc-lite-agent-{DEMO_PRESENTER}"
+__all__ = ["CONTEXT_HUB_REPO", "get_prompt"]
 
 
 def get_prompt() -> str:

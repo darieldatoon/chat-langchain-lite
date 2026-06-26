@@ -25,7 +25,7 @@ PROJECT_NAME = os.getenv("LANGSMITH_PROJECT", "chat-lc-lite")
 
 
 def run_agent_on_example(inputs: dict) -> dict:
-    from agent.agent import invoke_agent
+    from chat_langchain_lite.agent import invoke_agent
 
     question = (inputs.get("question") or "").strip()
     if not question:

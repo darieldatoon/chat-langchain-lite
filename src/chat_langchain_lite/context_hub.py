@@ -21,7 +21,7 @@ import requests
 from langsmith import Client
 from langsmith.schemas import FileEntry
 
-from context import CONTEXT_HUB_REPO
+from chat_langchain_lite.config import CONTEXT_HUB_REPO
 
 _API = "https://api.smith.langchain.com/api/v1"
 

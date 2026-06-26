@@ -151,7 +151,7 @@ def ensure_project_exists() -> None:
     Online evaluator setup requires the project to already exist in LangSmith.
     The project is created automatically when the first trace lands there.
     """
-    from agent.agent import invoke_agent
+    from chat_langchain_lite.agent import invoke_agent
 
     print(f"\n[1/4] Creating LangSmith project '{PROJECT_NAME}'...")
     invoke_agent("What is LangSmith?")
@@ -374,7 +374,7 @@ def main():
         print("Error: LANGSMITH_API_KEY not set.")
         sys.exit(1)
 
-    from utils.context_hub import push_agents_md, push_demo_skills
+    from chat_langchain_lite.context_hub import push_agents_md, push_demo_skills
 
     push_agents_md()
     push_demo_skills()

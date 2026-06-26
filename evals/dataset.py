@@ -23,19 +23,16 @@ left out so that Engine's proposal to add them has visible impact when
 evaluated in CI.
 """
 
-import os
-
 from langsmith import Client
 from langsmith.schemas import DataType
 
-# Presenter suffix — scopes every dataset/project/Context-Hub-repo name so
-# multiple demoers in the same LangSmith workspace don't collide. Set via
-# DEMO_PRESENTER env var (local `.env`) or GitHub repository variable
-# (CI). Defaults to "robert" if not set.
-DEMO_PRESENTER = os.getenv("DEMO_PRESENTER", "robert").strip() or "robert"
-
-DATASET_NAME = f"chat-lc-lite-scope-{DEMO_PRESENTER}"
-TOOL_ADHERENCE_DATASET_NAME = f"chat-lc-lite-tools-{DEMO_PRESENTER}"
+# Demo-scoping config lives in the runtime package (single source of truth);
+# re-exported here so existing `from evals.dataset import ...` call sites keep working.
+from chat_langchain_lite.config import (  # noqa: F401
+    DATASET_NAME,
+    DEMO_PRESENTER,
+    TOOL_ADHERENCE_DATASET_NAME,
+)
 
 EXAMPLES = [
     # All seed assertions are LOW-BAR — the buggy agent passes them. The

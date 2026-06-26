@@ -11,6 +11,7 @@ dependencies = [
     "langsmith>=0.1.0",
     "anthropic>=0.40.0",
     "python-dotenv>=1.0.0",
+    "pydantic-settings>=2.0.0",
     "requests>=2.31.0",
     "python-fasthtml>=0.12.0",
     "deepagents>=0.6.3",
@@ -21,31 +22,55 @@ dependencies = [
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-# Explicit package list so the LangSmith Cloud / `langgraph build` Docker
-# image (which runs `pip install .`) doesn't fail flat-layout auto-discovery
-# on the multiple top-level directories.
-packages = ["agent", "context", "evals", "frontend", "utils"]
+# src layout: the deployable runtime package is `chat_langchain_lite` (agent +
+# mounted web UI). `evals/` and `scripts/` stay at the repo root as dev/CI tooling
+# and are run with `python -m` (not shipped in the `pip install .` Docker image).
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# Bundle the logo so the mounted FastHTML UI can read it from the installed package.
+"chat_langchain_lite.web" = ["*.png"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+src = ["src", "evals", "scripts"]
 
 [tool.ruff.lint]
 # Sane defaults: pyflakes (F), pycodestyle (E/W), import sorting (I),
-# pyupgrade (UP), bugbear (B), comprehensions (C4), simplify (SIM).
-select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM"]
-# Line length is handled by `ruff format`; the remaining long lines are all data
-# string literals (suggestion/prompt text, canned doc & dataset content, CDN URLs)
-# that can't be split without hurting readability.
-ignore = ["E501"]
+# pyupgrade (UP), bugbear (B), comprehensions (C4), simplify (SIM),
+# flake8-pie (PIE), tidy-imports (TID), and ruff's own checks (RUF).
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PIE", "TID", "RUF"]
+ignore = [
+    # Line length is handled by `ruff format`; the remaining long lines are data
+    # string literals (prompts, canned docs/datasets, CDN URLs) that don't split well.
+    "E501",
+    # This is a prose/UI-heavy demo: typographic dashes/quotes in comments, prompts,
+    # and UI strings are intentional, so don't flag "ambiguous" unicode.
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["chat_langchain_lite", "evals", "scripts"]
+
+[tool.ruff.format]
+docstring-code-format = true
 
 [tool.ty.environment]
 python-version = "3.11"
+
+[tool.ty.rules]
+# Sane signal: unresolved imports are a hard error (catches broken refactors).
+# ty's auto-detected first-party roots already resolve src/, evals/, scripts/.
+unresolved-import = "error"
 
 [dependency-groups]
 dev = [
     "langgraph-cli[inmem]>=0.4.30",
     "ruff>=0.15.20",
     "ty>=0.0.54",
+    "lefthook>=1.7.0",
 ]

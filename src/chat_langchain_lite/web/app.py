@@ -1,8 +1,8 @@
 """Chat LangChain Lite — FastHTML frontend.
 
 Mounted into the LangGraph server as a custom app via ``langgraph.json``'s
-``http.app`` key (``"./frontend/app.py:app"``), so it is served from the same
-origin as the graph API. It renders a dark chat UI styled after
+``http.app`` key (``"./src/chat_langchain_lite/web/app.py:app"``), so it is served
+from the same origin as the graph API. It renders a dark chat UI styled after
 chat.langchain.com and streams the agent's response token-by-token over SSE.
 
 Features:
@@ -71,7 +71,9 @@ COMMENT_KEY = "user_comment"
 _ALLOWED_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]"}
 # Only ever redirect the trace link to LangSmith (open-redirect / SSRF guard).
 _TRACE_HOST_SUFFIX = ("smith.langchain.com",)
-_UUID_RE = re.compile(r"\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\Z")
+_UUID_RE = re.compile(
+    r"\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\Z"
+)
 
 
 def _api_url() -> str:
@@ -103,7 +105,7 @@ def _ls() -> Client:
 
 
 def _logo_data_uri() -> str:
-    path = Path(__file__).resolve().parent.parent / "langchain-color.png"
+    path = Path(__file__).resolve().parent / "langchain-color.png"
     b64 = base64.b64encode(path.read_bytes()).decode()
     return f"data:image/png;base64,{b64}"
 
@@ -405,8 +407,10 @@ if(document.readyState==='loading') window.addEventListener('DOMContentLoaded',i
 _SESSION_SECRET = os.getenv("SESSION_SECRET")
 if not _SESSION_SECRET:
     _SESSION_SECRET = secrets.token_urlsafe(32)
-    print("⚠️  SESSION_SECRET not set — using an ephemeral signing key. "
-          "Set SESSION_SECRET in deployment so sessions survive restarts.")
+    print(
+        "⚠️  SESSION_SECRET not set — using an ephemeral signing key. "
+        "Set SESSION_SECRET in deployment so sessions survive restarts."
+    )
 
 app, rt = fast_app(
     hdrs=HEAD,
@@ -429,9 +433,7 @@ def _msg_text(content) -> str:
         return content
     if isinstance(content, list):
         return "".join(
-            b.get("text") or ""
-            for b in content
-            if isinstance(b, dict) and b.get("type") == "text"
+            b.get("text") or "" for b in content if isinstance(b, dict) and b.get("type") == "text"
         )
     return ""
 
@@ -445,8 +447,9 @@ def _thumb(icon: str, score: str, run_id: str, title: str, selected: bool) -> FT
     """One 👍/👎 button. The selected one is highlighted AND disabled (you switch
     by clicking the other), giving a clear, persistent indication of your vote."""
     if selected:
-        return Button(icon, cls="fb-btn sel", title=title, data_score=score,
-                      data_run=run_id, disabled=True)
+        return Button(
+            icon, cls="fb-btn sel", title=title, data_score=score, data_run=run_id, disabled=True
+        )
     return Button(icon, cls="fb-btn", title=title, data_score=score, data_run=run_id)
 
 
@@ -502,8 +505,15 @@ def assistant_static(run_id: str | None, text: str, score: int | None = None) ->
 
 def empty_state() -> FT:
     cards = [
-        Button(text, cls="sug", hx_post="/send", hx_vals=json.dumps({"q": text}),
-               hx_target="#messages", hx_swap="beforeend", hx_disabled_elt="this")
+        Button(
+            text,
+            cls="sug",
+            hx_post="/send",
+            hx_vals=json.dumps({"q": text}),
+            hx_target="#messages",
+            hx_swap="beforeend",
+            hx_disabled_elt="this",
+        )
         for text in SUGGESTIONS
     ]
     return Div(
@@ -546,12 +556,20 @@ def composer() -> FT:
     return Div(
         Div(
             Form(
-                Input(name="q", placeholder="Message Chat LangChain Lite…",
-                      autocomplete="off", required=True, cls="chat-input"),
+                Input(
+                    name="q",
+                    placeholder="Message Chat LangChain Lite…",
+                    autocomplete="off",
+                    required=True,
+                    cls="chat-input",
+                ),
                 Button("➤", cls="send-btn", type="submit", title="Send"),
-                hx_post="/send", hx_target="#messages", hx_swap="beforeend",
+                hx_post="/send",
+                hx_target="#messages",
+                hx_swap="beforeend",
                 hx_disabled_elt="find .send-btn",
-                cls="chat-form", id="chat-form",
+                cls="chat-form",
+                id="chat-form",
             ),
             Div("Responses are traced to LangSmith. Rate them with 👍 / 👎.", cls="composer-hint"),
             cls="composer-inner",
@@ -615,8 +633,11 @@ async def send(session, q: str = ""):
             stream_resumable=True,
             if_not_exists="create",
         )
-    except Exception:  # noqa: BLE001 - show the message + a friendly error, never a 500
-        return (user_bubble(q), assistant_static(None, "⚠️ Couldn't reach the agent. Please try again."))
+    except Exception:
+        return (
+            user_bubble(q),
+            assistant_static(None, "⚠️ Couldn't reach the agent. Please try again."),
+        )
     return (user_bubble(q), assistant_live(run["run_id"]))
 
 
@@ -647,7 +668,7 @@ async def stream(session, run: str = ""):
                 acc += _msg_text(msg.get("content"))
                 if acc:
                     yield sse_message(acc, event="token")
-        except Exception:  # noqa: BLE001 - surface a friendly error, never secrets
+        except Exception:
             # Each token frame replaces the bubble, so append to acc rather than
             # emitting the warning alone — otherwise a mid-stream failure would
             # wipe the partial answer already shown.
@@ -685,13 +706,15 @@ async def feedback(run_id: str = "", kind: str = "", value: str = "", text: str 
             )
         else:
             _ls().create_feedback(
-                run_id, COMMENT_KEY, comment=text.strip(),
+                run_id,
+                COMMENT_KEY,
+                comment=text.strip(),
                 feedback_id=_feedback_id(run_id, COMMENT_KEY),
             )
 
     try:
         await asyncio.to_thread(_submit)
-    except Exception:  # noqa: BLE001 - never leak internals to the client
+    except Exception:
         return PlainTextResponse("Feedback failed.", status_code=502)
     return PlainTextResponse("", status_code=204)
 
@@ -705,7 +728,7 @@ async def view_trace(run_id: str):
     def _read_url() -> str | None:
         try:
             return _ls().read_run(run_id).url
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
 
     url = None
@@ -742,7 +765,7 @@ def _ensure_score_config() -> None:
     _SCORE_CONFIG_SET = True
     try:
         _ls().update_feedback_config(SCORE_KEY, feedback_config=_SCORE_CONFIG)
-    except Exception:  # noqa: BLE001 - config may not exist yet; fall back to create
+    except Exception:
         with contextlib.suppress(Exception):  # best-effort; scoring works without it
             _ls().create_feedback_config(SCORE_KEY, feedback_config=_SCORE_CONFIG)
 
@@ -751,7 +774,7 @@ async def _thread_run_ids(client, thread_id: str) -> list[str]:
     """Successful run ids for a thread, oldest-first (one per assistant turn)."""
     try:
         runs = await client.runs.list(thread_id, limit=100, status="success")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return []
     runs = [r for r in runs if isinstance(r, dict) and r.get("run_id")]
     runs.sort(key=lambda r: r.get("created_at") or "")
@@ -765,7 +788,7 @@ def _thread_votes(run_ids: list[str]) -> dict[str, int]:
     try:
         fbs = _ls().list_feedback(run_ids=run_ids, feedback_key=[SCORE_KEY])
         return {str(f.run_id): int(f.score) for f in fbs if f.score is not None}
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {}
 
 
@@ -802,7 +825,7 @@ async def _history_bubbles(thread_id: str) -> list[FT]:
     client = get_client(url=_api_url())
     try:
         state = await client.threads.get_state(thread_id)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return []
     values = state.get("values") if isinstance(state, dict) else None
     messages = (values or {}).get("messages") if isinstance(values, dict) else None

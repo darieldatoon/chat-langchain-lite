@@ -363,7 +363,7 @@ def reset_context_hub() -> None:
 
     Not called by --full, which deletes the Hub repos for a clean-slate re-setup.
     """
-    from utils.context_hub import push_agents_md, push_demo_skills
+    from chat_langchain_lite.context_hub import push_agents_md, push_demo_skills
 
     print("\n[*] Resetting Context Hub to seed (AGENTS.md + demo skills)...")
     try:

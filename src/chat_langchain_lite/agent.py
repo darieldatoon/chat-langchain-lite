@@ -7,8 +7,8 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
 
-from agent.tools import TOOLS
-from context import CONTEXT_HUB_REPO, get_prompt
+from chat_langchain_lite.context import CONTEXT_HUB_REPO, get_prompt
+from chat_langchain_lite.tools import TOOLS
 
 # AGENTS.md is the agent's system prompt — pulled fresh from LangSmith
 # Context Hub at module import.
