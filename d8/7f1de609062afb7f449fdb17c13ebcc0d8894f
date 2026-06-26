@@ -1,0 +1,38 @@
+scripts/setup.py
+  s_7d02ceb5dd13ce::t_264120549752fd 219-220
+  s_7d02ceb5dd13ce::t_b852823341fe9e 221-222,239-240,365
+src/chat_langchain_lite/config.py
+  s_7d02ceb5dd13ce::t_f483b3003a12bd 2,6,9,11-13,16,19-22,35-37,39,42-47,49-50,54,57-61,64,68,72,77-104
+src/chat_langchain_lite/context_hub.py
+  s_7d02ceb5dd13ce::t_47710e80024198 92
+scripts/run_evals.py
+  s_7d02ceb5dd13ce::t_1c4249071da9b6 90
+  s_7d02ceb5dd13ce::t_37162801428872 195
+  s_7d02ceb5dd13ce::t_7df7fe0c768f7d 58
+  s_7d02ceb5dd13ce::t_11ec7e4fff6e27 101
+scripts/run_pairwise.py
+  s_7d02ceb5dd13ce::t_bd5a6f873ed8bc 88
+  s_7d02ceb5dd13ce::t_1326606337a821 68-69
+src/chat_langchain_lite/agent.py
+  s_7d02ceb5dd13ce::t_29c3c8f36eea57 59,63
+scripts/cleanup.py
+  s_7d02ceb5dd13ce::t_d010303734e278 248
+  s_7d02ceb5dd13ce::t_be9e6495fbf5e2 217
+  s_7d02ceb5dd13ce::t_dfc9fcdca01500 228,230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d87f1de609062afb7f449fdb17c13ebcc0d8894f",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
