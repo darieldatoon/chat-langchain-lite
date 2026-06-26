@@ -56,7 +56,11 @@ PLAN: list[Step] = [
     Step(
         "Monitor", "Generate demo traffic (single-turn traces + threads)", "scripts.generate_traces"
     ),
-    Step("Monitor", "Create annotation queues + feedback→queue automations", None),
+    Step(
+        "Monitor",
+        "Create the review annotation queue + feedback→queue automation",
+        "scripts.build_monitoring",
+    ),
     Step("Monitor", "Create monitoring dashboard charts", None),
 ]
 

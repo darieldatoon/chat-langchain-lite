@@ -59,11 +59,12 @@ from langsmith import Client
 from langsmith.schemas import FeedbackConfig
 from starlette.responses import PlainTextResponse, RedirectResponse
 
+from chat_langchain_lite.config import USER_COMMENT_KEY as COMMENT_KEY
+from chat_langchain_lite.config import USER_SCORE_KEY as SCORE_KEY
+
 load_dotenv(override=True)
 
 ASSISTANT_ID = "agent"
-SCORE_KEY = "user_score"
-COMMENT_KEY = "user_comment"
 
 # Loopback hosts the frontend is allowed to reach. The frontend and the graph run
 # in the same process/container, so the SDK target is always localhost —

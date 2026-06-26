@@ -164,10 +164,13 @@ no API key in the browser); the vote shows on the trace and persists in history.
 *Say:* "real users telling us what's wrong — defect **5** (truncation) gets
 thumbs-downed here."
 
-**Automations → Annotation Queues → Dataset** 🔜 *Phase 2* — *Show:* an automation
-routes 👎 runs to an annotation queue; a reviewer corrects one and clicks
-add-to-dataset; the corrected example flows into the eval set. *Say:* "this is the
-self-improving loop, made concrete — a thumbs-down becomes a permanent test."
+**Automations → Annotation Queues → Dataset** ✅ — *Show:* the `Thumbs-down → review`
+automation (run rule on `user_score=0`) routes 👎 runs to the
+`chat-langchain-lite-review-darieldatoon` queue; a reviewer corrects one and clicks
+**Add to Reference Dataset** → it flows into `chat-langchain-lite-corrections-darieldatoon`.
+Seeded by `scripts/build_monitoring.py`. *Say:* "this is the self-improving loop,
+made concrete — a thumbs-down becomes a permanent test, and the same labels tune the
+evaluators (Align)."
 
 **Engine — the climax** ✅ *(Preview wiring 🔜 Phase 3)* — *Show:*
 1. Engine reads the failing online evals + traces and diagnoses the root causes,

@@ -20,6 +20,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # here and every dataset / project / prompt / experiment / tag name follows.
 APP_SLUG = "chat-langchain-lite"
 
+# Human-feedback keys emitted by the chat UI (web/app.py) and consumed by the
+# monitoring automation. Single source of truth so the two can't drift.
+USER_SCORE_KEY = "user_score"
+USER_COMMENT_KEY = "user_comment"
+
 
 class Settings(BaseSettings):
     """Demo-scoping config, loaded from the environment (or ``.env``)."""
@@ -75,6 +80,16 @@ class Settings(BaseSettings):
     def judge_prompt_ref(self) -> str:
         """Prompt Hub identifier for the LLM-as-judge evaluator prompt."""
         return f"{APP_SLUG}-judge-{self.demo_presenter}"
+
+    @property
+    def corrections_dataset_name(self) -> str:
+        """Dataset that the annotation queue's reviewed/corrected runs flow into."""
+        return f"{APP_SLUG}-corrections-{self.demo_presenter}"
+
+    @property
+    def review_queue_name(self) -> str:
+        """Annotation queue for human review of thumbs-down responses."""
+        return f"{APP_SLUG}-review-{self.demo_presenter}"
 
     @property
     def resource_prefix(self) -> str:
