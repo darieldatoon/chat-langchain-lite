@@ -1,0 +1,32 @@
+DEMO.md
+  s_7d02ceb5dd13ce::t_cbde486ed0afca 102-106
+scripts/provision.py
+  s_7d02ceb5dd13ce::t_34a71ae4440cea 40-42,50
+evals/evaluators.py
+  s_7d02ceb5dd13ce::t_84ef0eabbb1736 29-30,42-43
+  s_7d02ceb5dd13ce::t_d71214f7e2ac80 11-12
+  s_7d02ceb5dd13ce::t_d371156353f17d 31-40
+scripts/push_prompts.py
+  s_7d02ceb5dd13ce::t_4a78c584c66cdc 1-37,39-47
+  s_7d02ceb5dd13ce::t_d371156353f17d 38
+src/chat_langchain_lite/config.py
+  s_7d02ceb5dd13ce::t_55d2ef50677132 67-72
+src/chat_langchain_lite/prompts.py
+  s_7d02ceb5dd13ce::t_beb7a6c0a23cc4 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9c66640bfd14fde21cd66e424947a11170968a5c",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
