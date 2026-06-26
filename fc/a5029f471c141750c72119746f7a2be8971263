@@ -1,0 +1,20 @@
+DEMO.md
+  s_7d02ceb5dd13ce::t_83d663102ceb70 124-134
+  s_7d02ceb5dd13ce::t_7d2f2eb5d2dbe2 102,104-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fca5029f471c141750c72119746f7a2be8971263",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
