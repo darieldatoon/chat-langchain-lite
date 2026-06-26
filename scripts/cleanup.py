@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
+from scripts.eval_prompts import delete_eval_prompts  # noqa: E402
 
 # ── 1. Reset dataset ───────────────────────────────────────────────────────────
 
@@ -255,6 +256,12 @@ def delete_project() -> None:
                 except Exception as e:
                     if not any(s in str(e).lower() for s in ("not found", "404")):
                         print(f"  {repo_type} delete failed for '{handle}': {e}")
+
+    # 4. Sweep the prompts LangSmith auto-created for the online evaluators
+    # (eval_<project>_*) — they aren't cascade-deleted with the project.
+    print("\n[*] Deleting auto-created online-evaluator prompts (eval_* sweep)...")
+    n = delete_eval_prompts(ls_client)
+    print(f"  Deleted {n} eval prompt(s).")
 
     # Clear the saved run-rule IDs from state — those IDs no longer exist
     try:

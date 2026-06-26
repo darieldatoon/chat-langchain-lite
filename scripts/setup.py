@@ -36,6 +36,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
+from scripts.eval_prompts import delete_eval_prompts, tag_eval_prompts  # noqa: E402
 from scripts.resource_tags import tag_resource  # noqa: E402 — env must load first
 
 WORKSPACE_ID = os.getenv("LANGSMITH_WORKSPACE_ID", "").strip()
@@ -309,6 +310,9 @@ def setup_online_evaluators(api_key: str) -> list:
     model_json = ChatAnthropic(model_name="claude-haiku-4-5-20251001").to_json()
 
     delete_existing_evaluators(api_key)
+    # LangSmith leaves the auto-created eval_<project>_* prompts behind when a run
+    # rule is deleted; sweep the old ones so they don't accumulate across re-runs.
+    delete_eval_prompts(ls_client)
 
     # Online evaluators here are run rules (automations) bound to the project, not
     # standalone workspace "evaluator" resources — so they aren't individually
@@ -318,6 +322,9 @@ def setup_online_evaluators(api_key: str) -> list:
         rule_id = create_online_evaluator(api_key, ev, project_id, model_json)
         if rule_id:
             our_rule_ids.append(rule_id)
+
+    # Tag the prompts LangSmith just auto-created for these evaluators.
+    tag_eval_prompts(ls_client)
 
     print("\n  Every future trace will be automatically scored for:")
     for ev in EVALUATORS:
