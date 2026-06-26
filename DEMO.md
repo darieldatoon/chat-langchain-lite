@@ -99,11 +99,12 @@ Context Hub (`settings.context_hub_repo`), not the repo; plus a library of demo
 skills. *Say:* "the agent's operating context is versioned and editable outside a
 deploy — this is where defects 1 & 2 live, and where we'll fix them."
 
-**Prompt Hub** ✅ — *Show:* the LLM-as-judge prompt (`chat-lc-lite-judge-<presenter>`),
+**Prompt Hub** ✅ — *Show:* the LLM-as-judge prompt (`chat-langchain-lite-judge-<presenter>`),
 versioned in Prompt Hub and pulled by the offline evaluator via `pull_prompt(...:production)`
-(`chat_langchain_lite/prompts.py`); seeded by `scripts/push_prompts.py`. *Say:* "Context
-Hub = how the agent *operates*; Prompt Hub = how we *evaluate* — edit the judge in
-Playground, version it, promote by tag." (Sets up Align Evaluators.)
+(`chat_langchain_lite/prompts.py`); seeded by `scripts/push_prompts.py`. The online
+evaluators' prompts (`eval_<project>_*`) also live in Prompt Hub. *Say:* "Context Hub =
+how the agent *operates*; Prompt Hub = how we *evaluate* — edit a judge in the Playground,
+version it, promote by tag." (The online evaluators' prompts are what **Align** tunes.)
 
 ### 2 · Test
 
@@ -120,13 +121,17 @@ Haiku vs Sonnet over the dataset, judged head-to-head by an LLM, in the pairwise
 comparison view. *Say:* "when there's no single ground truth, compare candidates
 directly."
 
-**Align Evaluators** ✅ *(UI walkthrough)* — *Show:* open the judge evaluator's
-**Align** view; it scores the LLM-judge against human grades, highlights
-judge↔human disagreements, and lets you tune the judge prompt until they agree.
-Commit the tuned prompt back to Prompt Hub and move the `production` tag. *Say:*
-"you evaluate the evaluator — the judge itself improves from human feedback."
-*(Precondition met: the judge is Prompt-Hub-backed. Human grades come from the
-annotation-queue flow in **Monitor**.)*
+**Align Evaluators** ✅ *(UI walkthrough; depends on the annotation queue)* —
+*Target:* one of the **online evaluators** (e.g. `scope_adherence`) — these are
+LangSmith-managed *Tracing Project Evaluators*, which is what Align tunes (it does
+**not** tune code/SDK evaluators like the offline `assertion_evaluator`). *Show:*
+select scored runs → send to the annotation queue → a human corrects the
+evaluator's score and clicks **Add to Reference Dataset** → open the **Evaluator
+Playground** → **Start Alignment**: it compares the judge against the human labels
+and folds the corrections in as few-shot examples → iterate on the prompt until
+the alignment score climbs. *Say:* "you evaluate the evaluator — human
+corrections make the judge match human judgment." *(Prerequisite: the
+annotation-queue flow below.)*
 
 ### 3 · Deploy
 
