@@ -120,9 +120,13 @@ Haiku vs Sonnet over the dataset, judged head-to-head by an LLM, in the pairwise
 comparison view. *Say:* "when there's no single ground truth, compare candidates
 directly."
 
-**Align Evaluators** 🔜 *Phase 1* — *Show:* tune the LLM-judge against human
-grades; surface judge↔human disagreement; commit the improved judge prompt to
-Prompt Hub. *Say:* "you evaluate the evaluator."
+**Align Evaluators** ✅ *(UI walkthrough)* — *Show:* open the judge evaluator's
+**Align** view; it scores the LLM-judge against human grades, highlights
+judge↔human disagreements, and lets you tune the judge prompt until they agree.
+Commit the tuned prompt back to Prompt Hub and move the `production` tag. *Say:*
+"you evaluate the evaluator — the judge itself improves from human feedback."
+*(Precondition met: the judge is Prompt-Hub-backed. Human grades come from the
+annotation-queue flow in **Monitor**.)*
 
 ### 3 · Deploy
 
