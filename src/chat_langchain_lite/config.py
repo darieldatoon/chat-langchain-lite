@@ -31,6 +31,10 @@ class Settings(BaseSettings):
 
     demo_presenter: str = "robert"
     langsmith_project: str = "chat-lc-lite"
+    # Value of the LangSmith "Application" resource tag applied to every
+    # provisioned resource (so the UI can be filtered by application). Defaults
+    # to the project name; override with the APPLICATION env var.
+    application: str = ""
 
     @field_validator("demo_presenter", "langsmith_project", mode="after")
     @classmethod
@@ -38,6 +42,12 @@ class Settings(BaseSettings):
         # A set-but-empty env var (DEMO_PRESENTER="") should fall back to the default.
         stripped = (value or "").strip()
         return stripped or str(cls.model_fields[info.field_name].default)
+
+    @field_validator("application", mode="after")
+    @classmethod
+    def _default_application(cls, value: str, info: ValidationInfo) -> str:
+        # Declared after langsmith_project, so it's already validated in info.data.
+        return (value or "").strip() or info.data.get("langsmith_project", "")
 
     @computed_field
     @property

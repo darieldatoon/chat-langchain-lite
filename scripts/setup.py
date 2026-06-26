@@ -36,6 +36,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
+from scripts.resource_tags import tag_resource  # noqa: E402 — env must load first
 
 WORKSPACE_ID = os.getenv("LANGSMITH_WORKSPACE_ID", "").strip()
 
@@ -171,7 +172,7 @@ def setup_dataset() -> str:
     from evals.dataset import create_or_update_dataset
 
     print(f"\n[2/4] Setting up dataset '{settings.dataset_name}'...")
-    create_or_update_dataset()
+    dataset_id = create_or_update_dataset()
     # The tool-adherence dataset implementation is preserved in evals/dataset.py
     # (create_or_update_tool_adherence_dataset) but not seeded for the demo.
 
@@ -182,6 +183,7 @@ def setup_dataset() -> str:
         tag="baseline",
     )
     print("  Tagged dataset version as 'baseline'.")
+    tag_resource("dataset", dataset_id)
     return settings.dataset_name
 
 
@@ -303,6 +305,7 @@ def setup_online_evaluators(api_key: str) -> list:
 
     ls_client = Client()
     project_id = get_project_id(ls_client, settings.langsmith_project)
+    tag_resource("project", project_id)
     model_json = ChatAnthropic(model_name="claude-haiku-4-5-20251001").to_json()
 
     delete_existing_evaluators(api_key)
@@ -312,6 +315,7 @@ def setup_online_evaluators(api_key: str) -> list:
         rule_id = create_online_evaluator(api_key, ev, project_id, model_json)
         if rule_id:
             our_rule_ids.append(rule_id)
+            tag_resource("evaluator", rule_id)
 
     print("\n  Every future trace will be automatically scored for:")
     for ev in EVALUATORS:

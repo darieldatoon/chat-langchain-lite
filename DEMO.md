@@ -74,6 +74,12 @@ make dev            # run the graph + chat UI at http://localhost:2024
 `make demo-setup` runs `scripts/provision.py` — see `python -m scripts.provision --list`
 for the full plan (READY vs PLANNED steps).
 
+Every resource provisioning creates is tagged with the LangSmith **`Application`**
+resource tag (value `settings.application`, e.g. `chat-langchain-lite-darieldatoon`).
+In the LangSmith UI you can filter Projects, Datasets, Prompts, Annotation Queues,
+Experiments, and Deployments to just this application — handy for a clean demo in a
+shared workspace.
+
 ---
 
 ## Walkthrough
