@@ -170,12 +170,18 @@ def setup_dataset() -> str:
     """
     from langsmith import Client
 
-    from evals.dataset import create_or_update_dataset
+    from evals.dataset import SCOPE_INPUTS_SCHEMA, SCOPE_OUTPUTS_SCHEMA, create_or_update_dataset
+    from scripts.ls_admin import set_dataset_schema
 
     print(f"\n[2/4] Setting up dataset '{settings.dataset_name}'...")
     dataset_id = create_or_update_dataset()
     # The tool-adherence dataset implementation is preserved in evals/dataset.py
     # (create_or_update_tool_adherence_dataset) but not seeded for the demo.
+
+    # Apply the inputs/outputs schema (SDK has no update_dataset, so PATCH in place).
+    set_dataset_schema(
+        dataset_id, inputs_schema=SCOPE_INPUTS_SCHEMA, outputs_schema=SCOPE_OUTPUTS_SCHEMA
+    )
 
     ls_client = Client()
     ls_client.update_dataset_tag(

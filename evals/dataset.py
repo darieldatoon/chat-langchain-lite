@@ -29,6 +29,30 @@ from langsmith.schemas import DataType
 # Demo-scoping config (dataset names, presenter) lives in the runtime package.
 from chat_langchain_lite.config import settings
 
+# JSON schemas describing the scope dataset's example shape (assertions format),
+# applied to the dataset so the UI documents/validates inputs & outputs.
+SCOPE_INPUTS_SCHEMA = {
+    "type": "object",
+    "title": "scope_input",
+    "properties": {"question": {"type": "string"}},
+    "required": ["question"],
+}
+SCOPE_OUTPUTS_SCHEMA = {
+    "type": "object",
+    "title": "scope_output",
+    "properties": {
+        "assertions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"key": {"type": "string"}, "comment": {"type": "string"}},
+                "required": ["key", "comment"],
+            },
+        }
+    },
+    "required": ["assertions"],
+}
+
 EXAMPLES = [
     # All seed assertions are LOW-BAR — the buggy agent passes them. The
     # demo narrative is: "look, our existing test suite passes; but Engine

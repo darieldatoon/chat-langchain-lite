@@ -35,6 +35,17 @@ from scripts.resource_tags import tag_resource  # noqa: E402
 _API = "https://api.smith.langchain.com/api/v1"
 _TIMEOUT = 30
 
+# The "Correctness" dataset evaluator (created in the LangSmith UI, imported here
+# so it's reproducible). It's a reference-based LLM judge that only reads the first
+# input message and the final response, so the full trace in the example is fine.
+# hub_ref points at the prebuilt correctness prompt copy in this workspace.
+_CORRECTNESS_HUB_REF = "eval_correctness_636x107f:latest"
+_CORRECTNESS_VARIABLE_MAPPING = {
+    "inputs": "input.messages[0].content",
+    "outputs": "output.messages[-1].content",
+    "reference_outputs": "referenceOutput.messages[-1].content",
+}
+
 
 def _headers() -> dict[str, str]:
     headers = {"x-api-key": os.getenv("LANGSMITH_API_KEY", ""), "Content-Type": "application/json"}
@@ -124,6 +135,40 @@ def _ensure_rule(
     print(f"  • rule {display_name!r}: created → queue {queue_id}")
 
 
+def _ensure_correctness_evaluator(sess: requests.Session, dataset_id: str) -> None:
+    """Recreate the dataset's 'Correctness' LLM-judge (reference-based) if missing."""
+    resp = sess.get(f"{_API}/runs/rules?dataset_id={dataset_id}", timeout=_TIMEOUT)
+    resp.raise_for_status()
+    if any(r.get("display_name") == "Correctness" for r in resp.json()):
+        print("  • dataset evaluator 'Correctness': exists")
+        return
+    from langchain_anthropic import ChatAnthropic
+
+    # The hub_ref supplies only the prompt, so the structured evaluator needs an
+    # explicit model (else the judge chain validates as empty).
+    model_json = ChatAnthropic(model_name="claude-haiku-4-5-20251001").to_json()
+    resp = sess.post(
+        f"{_API}/runs/rules",
+        json={
+            "display_name": "Correctness",
+            "dataset_id": dataset_id,
+            "sampling_rate": 1.0,
+            "evaluators": [
+                {
+                    "structured": {
+                        "hub_ref": _CORRECTNESS_HUB_REF,
+                        "variable_mapping": _CORRECTNESS_VARIABLE_MAPPING,
+                        "model": model_json,
+                    }
+                }
+            ],
+        },
+        timeout=_TIMEOUT,
+    )
+    resp.raise_for_status()
+    print("  • dataset evaluator 'Correctness': created")
+
+
 def main() -> None:
     client = Client()
     sess = requests.Session()
@@ -151,6 +196,10 @@ def main() -> None:
         filter_=_root_feedback_filter(USER_SCORE_KEY, 0),
         queue_id=queue_id,
     )
+
+    # Reference-based correctness judge on the corrections dataset (closes the loop).
+    _ensure_correctness_evaluator(sess, dataset_id)
+
     print("\nDone. 👎 responses now route to the review queue; corrected runs grow the dataset.")
 
 
