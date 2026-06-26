@@ -1,0 +1,56 @@
+scripts/generate_traces.py
+  s_7d02ceb5dd13ce::t_eb1224f5009368 120
+src/chat_langchain_lite/__init__.py
+  s_7d02ceb5dd13ce::t_4fe3c7b240e863 1
+src/chat_langchain_lite/context.py
+  s_7d02ceb5dd13ce::t_09a29bb9b731aa 14-16
+scripts/run_evals.py
+  s_7d02ceb5dd13ce::t_4352c94336f9b6 28
+lefthook.yml
+  s_7d02ceb5dd13ce::t_0d501608cb07b3 1-18
+evals/dataset.py
+  s_7d02ceb5dd13ce::t_b94dac2b2a3c8f 29-35
+src/chat_langchain_lite/web/app.py
+  s_7d02ceb5dd13ce::t_9e8589caf180cd 56,74-76,92,278,410-828
+  s_7d02ceb5dd13ce::t_3f01175f24eb2e 108
+  s_7d02ceb5dd13ce::t_773180ca66a4ac 4-5
+src/chat_langchain_lite/config.py
+  s_7d02ceb5dd13ce::t_ac8b777f2849e1 1-4,7,12,14-16,46,51,56-57,59
+  s_7d02ceb5dd13ce::t_05239efb693dc3 5-6,8-11,13,17-45,47-50,52-55,58,60-65
+src/chat_langchain_lite/agent.py
+  s_7d02ceb5dd13ce::t_4aacbef66b7d96 10-11
+scripts/setup.py
+  s_7d02ceb5dd13ce::t_5f5b0d9a924bb5 154
+  s_7d02ceb5dd13ce::t_6858acf2e17a95 377
+pyproject.toml
+  s_7d02ceb5dd13ce::t_cb355bc0952122 66-67
+  s_7d02ceb5dd13ce::t_9eae8226a9f958 45-54
+  s_7d02ceb5dd13ce::t_732fbd6eec2266 38,42-44,56-60,65,68-69,75
+  s_7d02ceb5dd13ce::t_dd3671a803bf44 14
+  s_7d02ceb5dd13ce::t_b0efc6a5dd7c49 25-33
+  s_7d02ceb5dd13ce::t_c84e4baeac243e 55
+src/chat_langchain_lite/context_hub.py
+  s_7d02ceb5dd13ce::t_912b97160e6cd0 24
+langgraph.json
+  s_7d02ceb5dd13ce::t_aaa08c92f54b1e 4,8
+scripts/cleanup.py
+  s_7d02ceb5dd13ce::t_beb94da8e8e6c0 366
+uv.lock
+  s_7d02ceb5dd13ce::t_86ee8091ac1c08 355,364,379,388,1241-1253,1640-1653
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e17b2ae7a05ac3189ac54113a526c3656c69065a",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
