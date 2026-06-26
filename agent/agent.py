@@ -4,12 +4,11 @@ from deepagents.backends.context_hub import ContextHubBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware
 from langchain.agents import create_agent
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessageChunk, ToolMessage
+from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
 
 from agent.tools import TOOLS
 from context import CONTEXT_HUB_REPO, get_prompt
-from utils.streaming import iter_text
 
 # AGENTS.md is the agent's system prompt — pulled fresh from LangSmith
 # Context Hub at module import.
@@ -83,12 +82,3 @@ def invoke_agent(question: str, thread_id: str | None = None) -> dict:
     )
     tools_called = [m.name for m in result["messages"] if isinstance(m, ToolMessage)]
     return {"output": output, "tools_called": tools_called, "messages": result["messages"]}
-
-
-def stream_agent(question: str, thread_id: str | None = None):
-    """Stream the agent's response text as it's generated."""
-    for chunk, _meta in build_agent().stream(
-        _user_msg(question), _config(thread_id), stream_mode="messages"
-    ):
-        if isinstance(chunk, AIMessageChunk):
-            yield from iter_text(chunk)

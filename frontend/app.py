@@ -26,7 +26,7 @@ import contextlib
 import json
 import os
 import re
-import time
+import secrets
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
@@ -270,6 +270,7 @@ HEAD = (
     ),
     Script(src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"),
     Script(src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"),
+    Script(src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"),
     Script(src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.3/dist/sse.js"),
     Style(CSS),
 )
@@ -281,7 +282,13 @@ function renderMd(el){
   var raw=el.textContent||'';
   if(el.dataset.src===raw) return;            // already rendered this exact text
   el.dataset.src=raw;
-  if(window.marked) el.innerHTML=window.marked.parse(raw);
+  // Content is LLM/agent output (live or from thread history) — untrusted. marked
+  // does NOT sanitize, so always run the parsed HTML through DOMPurify before it
+  // touches innerHTML, closing the DOM-XSS hole in this single render chokepoint.
+  if(window.marked){
+    var html=window.marked.parse(raw);
+    el.innerHTML=window.DOMPurify?window.DOMPurify.sanitize(html):'';
+  }
   if(window.hljs) el.querySelectorAll('pre code').forEach(b=>window.hljs.highlightElement(b));
   el.dataset.src=el.textContent;              // post-render text → dedupe my own mutation
 }
@@ -339,12 +346,16 @@ function postFeedback(body){
 }
 function vote(btn){
   var fb=btn.closest('.fb'), prev=fb.querySelector('.fb-btn.sel');
+  // Each click supersedes the previous. Stamp this request so a stale, late-
+  // rejecting fetch from an earlier click can't revert a newer selection.
+  var seq=(fb._voteSeq=(fb._voteSeq||0)+1);
   // Select clicked (highlight + disable); re-enable the other so you can switch.
   fb.querySelectorAll('.fb-btn').forEach(b=>{ b.classList.remove('sel'); b.disabled=false; });
   btn.classList.add('sel'); btn.disabled=true;
   postFeedback({run_id:btn.dataset.run,kind:'score',value:btn.dataset.score})
     .then(r=>{ if(!r.ok) throw 0; })
     .catch(()=>{                       // revert to prior selection on failure
+      if(fb._voteSeq!==seq) return;    // superseded by a newer vote — leave it
       btn.classList.remove('sel'); btn.disabled=false;
       if(prev){ prev.classList.add('sel'); prev.disabled=true; }
     });
@@ -386,12 +397,23 @@ function init(){ applySidebar(); renderThreads(); startObserver(); renderAll(); 
 if(document.readyState==='loading') window.addEventListener('DOMContentLoaded',init); else init();
 """
 
+# The session cookie carries the chat thread id; its signing key must never be a
+# value an attacker could know. Prefer the configured SESSION_SECRET; if unset,
+# fall back to an ephemeral per-process key (cookies simply don't survive a
+# restart) rather than a hardcoded constant that would let anyone forge a session
+# and read another user's thread. Set SESSION_SECRET in any real deployment.
+_SESSION_SECRET = os.getenv("SESSION_SECRET")
+if not _SESSION_SECRET:
+    _SESSION_SECRET = secrets.token_urlsafe(32)
+    print("⚠️  SESSION_SECRET not set — using an ephemeral signing key. "
+          "Set SESSION_SECRET in deployment so sessions survive restarts.")
+
 app, rt = fast_app(
     hdrs=HEAD,
     htmx=True,
     pico=False,
     surreal=False,
-    secret_key=os.getenv("SESSION_SECRET", "chat-lc-lite-dev-secret-change-me"),
+    secret_key=_SESSION_SECRET,
     title="Chat LangChain Lite",
 )
 
@@ -481,7 +503,7 @@ def assistant_static(run_id: str | None, text: str, score: int | None = None) ->
 def empty_state() -> FT:
     cards = [
         Button(text, cls="sug", hx_post="/send", hx_vals=json.dumps({"q": text}),
-               hx_target="#messages", hx_swap="beforeend")
+               hx_target="#messages", hx_swap="beforeend", hx_disabled_elt="this")
         for text in SUGGESTIONS
     ]
     return Div(
@@ -528,6 +550,7 @@ def composer() -> FT:
                       autocomplete="off", required=True, cls="chat-input"),
                 Button("➤", cls="send-btn", type="submit", title="Send"),
                 hx_post="/send", hx_target="#messages", hx_swap="beforeend",
+                hx_disabled_elt="find .send-btn",
                 cls="chat-form", id="chat-form",
             ),
             Div("Responses are traced to LangSmith. Rate them with 👍 / 👎.", cls="composer-hint"),
@@ -564,7 +587,10 @@ async def index(session, new: str = "", thread: str = ""):
         session["thread"] = str(uuid.uuid4())
 
     thread_id = session["thread"]
-    body: list[FT] = await _history_bubbles(thread_id) if thread else []
+    # Render history for the active session thread on any load except an explicit
+    # "new" — so a plain refresh (no ?thread=) shows the ongoing conversation
+    # instead of the empty state and silently appending into a hidden thread.
+    body: list[FT] = [] if new else await _history_bubbles(thread_id)
     if not body:
         body = [empty_state()]
     return page(body, thread_id)
@@ -580,14 +606,17 @@ async def send(session, q: str = ""):
     thread_id = session["thread"]
     # Create the run ONCE here. The assistant bubble then joins this run's stream
     # over SSE, so EventSource reconnects re-attach instead of starting new runs.
-    run = await get_client(url=_api_url()).runs.create(
-        thread_id,
-        ASSISTANT_ID,
-        input={"messages": [{"role": "user", "content": q}]},
-        stream_mode="messages-tuple",
-        stream_resumable=True,
-        if_not_exists="create",
-    )
+    try:
+        run = await get_client(url=_api_url()).runs.create(
+            thread_id,
+            ASSISTANT_ID,
+            input={"messages": [{"role": "user", "content": q}]},
+            stream_mode="messages-tuple",
+            stream_resumable=True,
+            if_not_exists="create",
+        )
+    except Exception:  # noqa: BLE001 - show the message + a friendly error, never a 500
+        return (user_bubble(q), assistant_static(None, "⚠️ Couldn't reach the agent. Please try again."))
     return (user_bubble(q), assistant_live(run["run_id"]))
 
 
@@ -618,8 +647,12 @@ async def stream(session, run: str = ""):
                 acc += _msg_text(msg.get("content"))
                 if acc:
                     yield sse_message(acc, event="token")
-        except Exception as exc:  # noqa: BLE001 - surface a friendly error, never secrets
-            yield sse_message(f"⚠️ {type(exc).__name__}: request failed.", event="token")
+        except Exception:  # noqa: BLE001 - surface a friendly error, never secrets
+            # Each token frame replaces the bubble, so append to acc rather than
+            # emitting the warning alone — otherwise a mid-stream failure would
+            # wipe the partial answer already shown.
+            warning = "\n\n⚠️ The response was interrupted. Please try again."
+            yield sse_message((acc + warning) if acc else warning.strip(), event="token")
         # Feedback + trace bar once the response is complete.
         yield sse_message(fb_bar(run_id), event="actions")
         yield sse_message("", event="done")
@@ -628,7 +661,7 @@ async def stream(session, run: str = ""):
 
 
 @rt("/feedback")
-def feedback(run_id: str = "", kind: str = "", value: str = "", text: str = ""):
+async def feedback(run_id: str = "", kind: str = "", value: str = "", text: str = ""):
     """Submit user feedback for a response (same-origin; upserts one record).
 
     A deterministic feedback_id per (run, key) means repeated/switched votes
@@ -636,41 +669,52 @@ def feedback(run_id: str = "", kind: str = "", value: str = "", text: str = ""):
     """
     if not _UUID_RE.match(run_id or ""):
         return PlainTextResponse("Invalid run id.", status_code=400)
-    try:
+    if kind == "comment" and not (text or "").strip():
+        return PlainTextResponse("", status_code=204)
+    if kind not in ("score", "comment"):
+        return PlainTextResponse("Unknown feedback kind.", status_code=400)
+
+    def _submit() -> None:
+        # The sync LangSmith client blocks; run it off the event loop (langgraph
+        # dev rejects blocking calls inside async routes).
         if kind == "score":
             _ensure_score_config()
             score = 1 if value == "1" else 0
             _ls().create_feedback(
                 run_id, SCORE_KEY, score=score, feedback_id=_feedback_id(run_id, SCORE_KEY)
             )
-        elif kind == "comment":
-            comment = (text or "").strip()
-            if not comment:
-                return PlainTextResponse("", status_code=204)
-            _ls().create_feedback(
-                run_id, COMMENT_KEY, comment=comment, feedback_id=_feedback_id(run_id, COMMENT_KEY)
-            )
         else:
-            return PlainTextResponse("Unknown feedback kind.", status_code=400)
+            _ls().create_feedback(
+                run_id, COMMENT_KEY, comment=text.strip(),
+                feedback_id=_feedback_id(run_id, COMMENT_KEY),
+            )
+
+    try:
+        await asyncio.to_thread(_submit)
     except Exception:  # noqa: BLE001 - never leak internals to the client
         return PlainTextResponse("Feedback failed.", status_code=502)
     return PlainTextResponse("", status_code=204)
 
 
 @rt("/trace/{run_id}")
-def view_trace(run_id: str):
+async def view_trace(run_id: str):
     """Redirect to a response's LangSmith trace (open-redirect guarded)."""
     if not _UUID_RE.match(run_id or ""):
         return PlainTextResponse("Invalid run id.", status_code=400)
-    url = None
-    for _ in range(4):  # the trace may still be flushing for a few seconds
+
+    def _read_url() -> str | None:
         try:
-            url = _ls().read_run(run_id).url
-            if url:
-                break
+            return _ls().read_run(run_id).url
         except Exception:  # noqa: BLE001
-            url = None
-        time.sleep(0.8)
+            return None
+
+    url = None
+    for attempt in range(4):  # the trace may still be flushing for a few seconds
+        url = await asyncio.to_thread(_read_url)
+        if url:
+            break
+        if attempt < 3:
+            await asyncio.sleep(0.8)
     host = urlparse(url or "").hostname or ""
     if not url or not any(host == h or host.endswith("." + h) for h in _TRACE_HOST_SUFFIX):
         return PlainTextResponse("Trace not available yet — try again shortly.", status_code=404)
@@ -725,6 +769,28 @@ def _thread_votes(run_ids: list[str]) -> dict[str, int]:
         return {}
 
 
+def _count_assistant_turns(messages: list) -> int:
+    """Number of assistant bubbles a message list collapses into.
+
+    Mirrors _history_bubbles' grouping: consecutive AI-text messages form one
+    bubble, broken by a human-text message. Kept in sync so the count can be
+    compared against the run-id list before binding them positionally.
+    """
+    turns = 0
+    pending = False
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        text = _msg_text(m.get("content"))
+        if m.get("type") == "human" and text:
+            if pending:
+                turns += 1
+                pending = False
+        elif m.get("type") == "ai" and text:
+            pending = True
+    return turns + 1 if pending else turns
+
+
 async def _history_bubbles(thread_id: str) -> list[FT]:
     """Render a thread's prior messages from the graph's own state.
 
@@ -744,6 +810,17 @@ async def _history_bubbles(thread_id: str) -> list[FT]:
         return []
 
     run_ids = await _thread_run_ids(client, thread_id)
+
+    # We map assistant bubbles to run ids positionally (oldest-first). That only
+    # holds if there's exactly one success run per assistant turn; an errored /
+    # interrupted run (excluded from run_ids) would shift every later mapping and
+    # attach votes/trace links to the WRONG response. If the counts disagree,
+    # drop the run binding entirely — better to show history without feedback
+    # bars than to mis-attribute them.
+    assistant_turns = _count_assistant_turns(messages)
+    if len(run_ids) != assistant_turns:
+        run_ids = []
+
     # _thread_votes uses the *sync* LangSmith client; offload it so we don't make
     # a blocking call inside this async route (langgraph dev rejects those).
     votes = await asyncio.to_thread(_thread_votes, run_ids)
