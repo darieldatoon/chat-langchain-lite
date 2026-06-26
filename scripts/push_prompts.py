@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from langsmith import Client  # noqa: E402 — env must load first
+from langsmith.utils import LangSmithConflictError  # noqa: E402
 
 from chat_langchain_lite.config import settings  # noqa: E402
 from chat_langchain_lite.prompts import build_judge_template  # noqa: E402
@@ -24,13 +25,17 @@ def push_judge_prompt() -> None:
     ref = settings.judge_prompt_ref
     print(f"\n[*] Pushing judge prompt '{ref}' to Prompt Hub (tag: production)...")
     client = Client()
-    url = client.push_prompt(
-        ref,
-        object=build_judge_template(),
-        commit_tags=["production"],
-        description="Chat LangChain Lite — LLM-as-judge for offline assertion evals",
-    )
-    print(f"  Pushed: {url}")
+    try:
+        url = client.push_prompt(
+            ref,
+            object=build_judge_template(),
+            commit_tags=["production"],
+            description="Chat LangChain Lite — LLM-as-judge for offline assertion evals",
+        )
+        print(f"  Pushed: {url}")
+    except LangSmithConflictError:
+        # Content unchanged since the last commit — already up to date, no-op.
+        print("  Prompt already up to date (no changes to commit).")
     # Tag the prompt resource with Application (best-effort).
     try:
         prompt = client.get_prompt(ref)
