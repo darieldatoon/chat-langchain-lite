@@ -47,7 +47,11 @@ PLAN: list[Step] = [
         "scripts.setup",
     ),
     # ── Test ───────────────────────────────────────────────────────────────
-    Step("Test", "Pairwise experiment (Haiku vs Sonnet, judged head-to-head)", None),
+    Step(
+        "Test",
+        "Pairwise experiment (Haiku vs Sonnet, judged head-to-head)",
+        "scripts.run_pairwise",
+    ),
     # ── Monitor (needs traffic + monitoring infra) ───────────────────────────
     Step(
         "Monitor", "Generate demo traffic (single-turn traces + threads)", "scripts.generate_traces"

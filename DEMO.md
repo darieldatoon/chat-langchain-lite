@@ -115,9 +115,10 @@ examples slot in here."
 view; the pinned baseline (Haiku/Sonnet). *Say:* "this is where defects **3 & 4**
 get caught — `factual_accuracy` and `security_advice` fail *before* we ship."
 
-**Pairwise experiments** 🔜 *Phase 1* — *Show:* two variants (e.g. buggy vs fixed
-prompt) judged head-to-head. *Say:* "when there's no single ground truth, compare
-candidates directly."
+**Pairwise experiments** ✅ — *Show:* `make` the pairwise run (`scripts/run_pairwise.py`):
+Haiku vs Sonnet over the dataset, judged head-to-head by an LLM, in the pairwise
+comparison view. *Say:* "when there's no single ground truth, compare candidates
+directly."
 
 **Align Evaluators** 🔜 *Phase 1* — *Show:* tune the LLM-judge against human
 grades; surface judge↔human disagreement; commit the improved judge prompt to
