@@ -1,0 +1,21 @@
+.worktreeinclude
+  s_720305906a2d9a::t_dd553fa13ca750 1-10
+.gitignore
+  s_720305906a2d9a::t_44991f45e6460a 13-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "012d59bf2bdb06a30046ebda12cf5c03cf0b2f23",
+  "prompts": {},
+  "sessions": {
+    "s_720305906a2d9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7fa4482c-df60-487e-8b72-9e8a22ff6770",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
