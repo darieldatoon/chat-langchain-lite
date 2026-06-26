@@ -24,16 +24,23 @@ import os
 import subprocess
 import sys
 import time
+
 import requests
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from evals.dataset import DATASET_NAME, TOOL_ADHERENCE_DATASET_NAME, DEMO_PRESENTER
+from evals.dataset import (  # noqa: E402 — env must load first
+    DATASET_NAME,
+    DEMO_PRESENTER,
+    TOOL_ADHERENCE_DATASET_NAME,
+)
+
 PROJECT_NAME = os.getenv("LANGSMITH_PROJECT", "chat-lc-lite")
 
 
 # ── 1. Reset dataset ───────────────────────────────────────────────────────────
+
 
 def reset_dataset() -> None:
     """Reset both demo datasets to their canonical seed examples.
@@ -42,9 +49,10 @@ def reset_dataset() -> None:
     and re-upload the originals.
     """
     from langsmith import Client
+
     from evals.dataset import EXAMPLES, TOOL_ADHERENCE_EXAMPLES
 
-    print(f"\n[1/3] Resetting demo datasets to canonical seeds...")
+    print("\n[1/3] Resetting demo datasets to canonical seeds...")
     ls_client = Client()
 
     for name, examples in (
@@ -70,6 +78,7 @@ def reset_dataset() -> None:
 
 # ── 2. Delete 'after' experiments ─────────────────────────────────────────────
 
+
 def delete_ci_experiments() -> None:
     """Delete CI/Engine experiments linked to the dataset.
 
@@ -80,7 +89,7 @@ def delete_ci_experiments() -> None:
     """
     from langsmith import Client
 
-    print(f"\n[2/3] Removing CI/Engine experiments (keeping baseline seeds)...")
+    print("\n[2/3] Removing CI/Engine experiments (keeping baseline seeds)...")
     ls_client = Client()
     total_deleted = 0
     total_kept = 0
@@ -92,7 +101,7 @@ def delete_ci_experiments() -> None:
         for exp in experiments:
             # Preserve the baseline-* seeds setup.py creates (the Haiku/Sonnet
             # "before" reference); only sweep CI/Engine experiments.
-            if exp.name.startswith("baseline-"):
+            if exp.name and exp.name.startswith("baseline-"):
                 total_kept += 1
                 continue
             for attempt in range(3):
@@ -112,6 +121,7 @@ def delete_ci_experiments() -> None:
 
 # ── 3. Delete Engine-added online evaluators ───────────────────────────────────
 
+
 def delete_engine_evaluators(api_key: str) -> None:
     """Delete only the online evaluators Engine added — leave our setup.py ones intact.
 
@@ -121,7 +131,7 @@ def delete_engine_evaluators(api_key: str) -> None:
     """
     from langsmith import Client
 
-    print(f"\n[3/3] Removing Engine-added online evaluators...")
+    print("\n[3/3] Removing Engine-added online evaluators...")
 
     try:
         with open(".demo_state.json") as f:
@@ -171,6 +181,7 @@ def delete_engine_evaluators(api_key: str) -> None:
 
 # ── Optional: delete the entire LangSmith project ─────────────────────────────
 
+
 def delete_project() -> None:
     """Delete project + datasets + every chat-lc-lite-* Context Hub repo.
 
@@ -203,7 +214,7 @@ def delete_project() -> None:
     #     linger after the evaluator itself is deleted).
     # The bare `chat-lc-lite-` prefix is deliberately NOT used: it ignores the
     # presenter suffix and would delete other demoers' datasets.
-    print(f"\n[*] Deleting demo datasets...")
+    print("\n[*] Deleting demo datasets...")
     known = {DATASET_NAME, TOOL_ADHERENCE_DATASET_NAME}
     presenter_suffix = f"-{DEMO_PRESENTER}"
     for d in ls_client.list_datasets():
@@ -222,13 +233,16 @@ def delete_project() -> None:
 
     # 3. Context Hub — sweep every chat-lc-lite-* agent and skill (catches
     # the current ones plus any leftovers from prior renames).
-    print(f"\n[*] Deleting Context Hub repos (chat-lc-lite-* sweep)...")
+    print("\n[*] Deleting Context Hub repos (chat-lc-lite-* sweep)...")
     api_key = os.environ.get("LANGSMITH_API_KEY", "")
     workspace_id = os.environ.get("LANGSMITH_WORKSPACE_ID", "")
     H = {"x-api-key": api_key}
     if workspace_id:
         H["X-Tenant-Id"] = workspace_id
-    for repo_type, delete_fn in (("agent", ls_client.delete_agent), ("skill", ls_client.delete_skill)):
+    for repo_type, delete_fn in (
+        ("agent", ls_client.delete_agent),
+        ("skill", ls_client.delete_skill),
+    ):
         r = requests.get(
             f"https://api.smith.langchain.com/v1/platform/hub/repos?repo_type={repo_type}",
             headers=H,
@@ -237,7 +251,11 @@ def delete_project() -> None:
             continue
         for repo in r.json().get("repos", []):
             handle = repo.get("repo_handle", "")
-            if handle.startswith("chat-lc-lite-") or handle in {"release-notes-skill", "support-ticket-triage-skill", "pr-review-summary-skill"}:
+            if handle.startswith("chat-lc-lite-") or handle in {
+                "release-notes-skill",
+                "support-ticket-triage-skill",
+                "pr-review-summary-skill",
+            }:
                 try:
                     delete_fn(handle)
                     print(f"  Deleted {repo_type} '{handle}'.")
@@ -255,6 +273,7 @@ def delete_project() -> None:
 
 # ── 4. Reset repo main to the baseline tag ────────────────────────────────────
 
+
 def reset_main_to_baseline() -> None:
     """Force-reset the repo's main branch to the `baseline` tag.
 
@@ -264,12 +283,13 @@ def reset_main_to_baseline() -> None:
     fork-vs-upstream design, the tag lives in the same repo — no external
     upstream needed.
     """
-    print(f"\n[4/4] Resetting main branch to the 'baseline' tag...")
+    print("\n[4/4] Resetting main branch to the 'baseline' tag...")
 
     # Get the repo from origin URL
     result = subprocess.run(
         ["git", "remote", "get-url", "origin"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         print("  Warning: could not determine origin remote. Skipping.")
@@ -287,10 +307,13 @@ def reset_main_to_baseline() -> None:
     # Get the baseline tag's commit SHA from GitHub
     result = subprocess.run(
         ["gh", "api", f"repos/{fork_repo}/git/refs/tags/baseline", "--jq", ".object.sha"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
-        print(f"  Warning: 'baseline' tag not found on '{fork_repo}' ({result.stderr.strip()}). Skipping.")
+        print(
+            f"  Warning: 'baseline' tag not found on '{fork_repo}' ({result.stderr.strip()}). Skipping."
+        )
         return
     baseline_sha = result.stdout.strip()
 
@@ -298,18 +321,27 @@ def reset_main_to_baseline() -> None:
     if baseline_sha:
         deref = subprocess.run(
             ["gh", "api", f"repos/{fork_repo}/git/tags/{baseline_sha}", "--jq", ".object.sha"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         if deref.returncode == 0 and deref.stdout.strip():
             baseline_sha = deref.stdout.strip()
 
     # Force-reset main to baseline SHA
     result = subprocess.run(
-        ["gh", "api", f"repos/{fork_repo}/git/refs/heads/main",
-         "-X", "PATCH",
-         "-f", f"sha={baseline_sha}",
-         "-F", "force=true"],
-        capture_output=True, text=True,
+        [
+            "gh",
+            "api",
+            f"repos/{fork_repo}/git/refs/heads/main",
+            "-X",
+            "PATCH",
+            "-f",
+            f"sha={baseline_sha}",
+            "-F",
+            "force=true",
+        ],
+        capture_output=True,
+        text=True,
     )
     if result.returncode == 0:
         print(f"  Reset '{fork_repo}' main to baseline ({baseline_sha[:8]}).")
@@ -318,6 +350,7 @@ def reset_main_to_baseline() -> None:
 
 
 # ── Re-seed Context Hub ───────────────────────────────────────────────────────
+
 
 def reset_context_hub() -> None:
     """Re-seed Context Hub (AGENTS.md + demo skills) back to the buggy baseline.
@@ -332,7 +365,7 @@ def reset_context_hub() -> None:
     """
     from utils.context_hub import push_agents_md, push_demo_skills
 
-    print(f"\n[*] Resetting Context Hub to seed (AGENTS.md + demo skills)...")
+    print("\n[*] Resetting Context Hub to seed (AGENTS.md + demo skills)...")
     try:
         push_agents_md()
         push_demo_skills()
@@ -342,13 +375,14 @@ def reset_context_hub() -> None:
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--full",
         action="store_true",
         help="Also delete the LangSmith project (clears all traces and Engine's "
-             "per-project issue state). Re-run scripts.setup after.",
+        "per-project issue state). Re-run scripts.setup after.",
     )
     args = parser.parse_args()
 
@@ -357,11 +391,11 @@ def main():
         print("Error: LANGSMITH_API_KEY not set.")
         sys.exit(1)
 
-    print(f"Cleaning up demo...")
+    print("Cleaning up demo...")
     print(f"  Dataset:  {DATASET_NAME}")
     print(f"  Project:  {PROJECT_NAME}")
     if args.full:
-        print(f"  Mode:     FULL (project will be deleted)")
+        print("  Mode:     FULL (project will be deleted)")
 
     if args.full:
         # --full: nuke everything. Experiments are projects too, so delete
@@ -377,9 +411,9 @@ def main():
     reset_main_to_baseline()
 
     if args.full:
-        print(f"\nFull cleanup complete. Run `python -m scripts.setup` before the next demo.")
+        print("\nFull cleanup complete. Run `python -m scripts.setup` before the next demo.")
     else:
-        print(f"\nCleanup complete. Ready for the next demo.")
+        print("\nCleanup complete. Ready for the next demo.")
 
 
 if __name__ == "__main__":

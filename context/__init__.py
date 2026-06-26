@@ -28,6 +28,9 @@ def get_prompt() -> str:
     # truth: a fix to the prompt can be applied BOTH as a PR to that seed file
     # AND by updating the live Context Hub repo (`CONTEXT_HUB_REPO`).
     try:
-        return Client().pull_agent(CONTEXT_HUB_REPO).files["AGENTS.md"].content
+        # `.files[...]` is a FileEntry | AgentEntry | SkillEntry union; only FileEntry
+        # has `.content`. The AGENTS.md entry is always a FileEntry at runtime.
+        entry = Client().pull_agent(CONTEXT_HUB_REPO).files["AGENTS.md"]
+        return getattr(entry, "content", "")
     except Exception:
         return ""

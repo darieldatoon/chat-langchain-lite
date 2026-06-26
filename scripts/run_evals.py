@@ -14,16 +14,19 @@ Usage:
 import argparse
 import os
 import sys
+
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from evals.dataset import DATASET_NAME, DEMO_PRESENTER
+from evals.dataset import DATASET_NAME, DEMO_PRESENTER  # noqa: E402 — env must load first
+
 PROJECT_NAME = os.getenv("LANGSMITH_PROJECT", "chat-lc-lite")
 
 
 def run_agent_on_example(inputs: dict) -> dict:
     from agent.agent import invoke_agent
+
     question = (inputs.get("question") or "").strip()
     if not question:
         # Engine-generated examples use chat message format
@@ -43,6 +46,7 @@ def run_agent_on_example(inputs: dict) -> dict:
 
 def run_evaluation(experiment_prefix: str) -> dict:
     from langsmith import evaluate
+
     from evals.evaluators import assertion_evaluator
 
     print(f"\nRunning evaluation on dataset '{DATASET_NAME}'...")
@@ -67,7 +71,7 @@ def run_evaluation(experiment_prefix: str) -> dict:
 
     overall = sum(per_example) / len(per_example) if per_example else 0.0
     n = len(per_example)
-    print(f"\nResults:")
+    print("\nResults:")
     print(f"  assertions_pass_rate  {overall:.2f}  (avg across {n} examples)")
     return {"assertions_pass_rate": overall, "__overall__": overall}
 
@@ -115,6 +119,7 @@ def setup_online_eval():
         return
 
     from langsmith import Client
+
     ls_client = Client()
 
     projects = list(ls_client.list_projects())
@@ -125,7 +130,7 @@ def setup_online_eval():
 
     print(f"\nSetting up online evaluators on project '{PROJECT_NAME}'...")
 
-    model_json = ChatAnthropic(model="claude-haiku-4-5-20251001").to_json()
+    model_json = ChatAnthropic(model_name="claude-haiku-4-5-20251001").to_json()
 
     for ev in ONLINE_EVALUATORS:
         payload = {
@@ -176,16 +181,23 @@ def setup_online_eval():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--skip-dataset", action="store_true", help="Reuse existing dataset (used in CI)")
+    parser.add_argument(
+        "--skip-dataset", action="store_true", help="Reuse existing dataset (used in CI)"
+    )
     parser.add_argument("--no-generated", action="store_true")
     parser.add_argument("--n-generated", type=int, default=8)
     parser.add_argument("--setup-online-eval", action="store_true")
-    parser.add_argument("--threshold", type=float, default=None, help="Fail (exit 1) if avg score below this value")
-    parser.add_argument("--experiment-prefix", type=str, default=f"engine-chat-lc-lite-{DEMO_PRESENTER}")
+    parser.add_argument(
+        "--threshold", type=float, default=None, help="Fail (exit 1) if avg score below this value"
+    )
+    parser.add_argument(
+        "--experiment-prefix", type=str, default=f"engine-chat-lc-lite-{DEMO_PRESENTER}"
+    )
     args = parser.parse_args()
 
     if not args.skip_dataset:
         from evals.dataset import create_or_update_dataset
+
         print(f"Preparing dataset '{DATASET_NAME}'...")
         create_or_update_dataset()
 

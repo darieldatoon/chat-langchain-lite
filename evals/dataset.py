@@ -23,10 +23,10 @@ left out so that Engine's proposal to add them has visible impact when
 evaluated in CI.
 """
 
+import os
+
 from langsmith import Client
 from langsmith.schemas import DataType
-
-import os
 
 # Presenter suffix — scopes every dataset/project/Context-Hub-repo name so
 # multiple demoers in the same LangSmith workspace don't collide. Set via
@@ -99,13 +99,17 @@ EXAMPLES = [
 # point at when explaining offline evals while the PR's CI is running.
 TOOL_ADHERENCE_EXAMPLES = [
     {
-        "input": {"question": "How long has LangSmith been around — what year was it first released?"},
+        "input": {
+            "question": "How long has LangSmith been around — what year was it first released?"
+        },
         "output": {"expected": "LangSmith was first released in 2023."},
         "metadata": {"category": "concept_info", "subcategory": "history"},
     },
     {
         "input": {"question": "What package do I install to use LangGraph?"},
-        "output": {"expected": "Install the `langgraph` package: `uv add langgraph` or `pip install -U langgraph`."},
+        "output": {
+            "expected": "Install the `langgraph` package: `uv add langgraph` or `pip install -U langgraph`."
+        },
         "metadata": {"category": "setup", "subcategory": "installation"},
     },
     {

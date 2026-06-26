@@ -26,13 +26,17 @@ Usage:
 import json
 import os
 import sys
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
+
 import requests
-from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from evals.dataset import DATASET_NAME, DEMO_PRESENTER
+from evals.dataset import DATASET_NAME, DEMO_PRESENTER  # noqa: E402 — env must load first
+
 PROJECT_NAME = os.getenv("LANGSMITH_PROJECT", "chat-lc-lite")
 WORKSPACE_ID = os.getenv("LANGSMITH_WORKSPACE_ID", "").strip()
 
@@ -50,6 +54,7 @@ def _ls_headers(api_key: str, json_body: bool = False) -> dict:
     if json_body:
         headers["Content-Type"] = "application/json"
     return headers
+
 
 EVALUATORS = [
     {
@@ -139,6 +144,7 @@ EVALUATORS = [
 
 # ── Project bootstrap ──────────────────────────────────────────────────────────
 
+
 def ensure_project_exists() -> None:
     """Send one trace to create the LangSmith project before online evals are registered.
 
@@ -146,6 +152,7 @@ def ensure_project_exists() -> None:
     The project is created automatically when the first trace lands there.
     """
     from agent.agent import invoke_agent
+
     print(f"\n[1/4] Creating LangSmith project '{PROJECT_NAME}'...")
     invoke_agent("What is LangSmith?")
     print(f"  Project '{PROJECT_NAME}' is ready.")
@@ -153,14 +160,16 @@ def ensure_project_exists() -> None:
 
 # ── Dataset ────────────────────────────────────────────────────────────────────
 
+
 def setup_dataset() -> str:
     """Create or update the evaluation dataset and tag the version as 'baseline'.
 
     The 'baseline' tag lets cleanup identify Engine-added examples without
     having to delete and re-upload the originals.
     """
-    from evals.dataset import create_or_update_dataset
     from langsmith import Client
+
+    from evals.dataset import create_or_update_dataset
 
     print(f"\n[2/4] Setting up dataset '{DATASET_NAME}'...")
     create_or_update_dataset()
@@ -170,14 +179,15 @@ def setup_dataset() -> str:
     ls_client = Client()
     ls_client.update_dataset_tag(
         dataset_name=DATASET_NAME,
-        as_of=datetime.now(timezone.utc),
+        as_of=datetime.now(UTC),
         tag="baseline",
     )
-    print(f"  Tagged dataset version as 'baseline'.")
+    print("  Tagged dataset version as 'baseline'.")
     return DATASET_NAME
 
 
 # ── Online evaluators ──────────────────────────────────────────────────────────
+
 
 def get_project_id(ls_client, project_name: str) -> str:
     projects = list(ls_client.list_projects())
@@ -219,7 +229,8 @@ def delete_existing_evaluators(api_key: str) -> None:
         if resp.status_code != 200:
             break
         ids_to_delete = [
-            ev["id"] for ev in resp.json().get("evaluators", [])
+            ev["id"]
+            for ev in resp.json().get("evaluators", [])
             if ev.get("name", "") in our_keys or ev.get("name", "").startswith("chat-lc-lite-demo-")
         ]
         for ev_id in ids_to_delete:
@@ -231,7 +242,9 @@ def delete_existing_evaluators(api_key: str) -> None:
             print(f"  Deleted {len(ids_to_delete)} existing evaluator(s)")
 
 
-def create_online_evaluator(api_key: str, ev: dict, project_id: str, model_json: dict) -> str | None:
+def create_online_evaluator(
+    api_key: str, ev: dict, project_id: str, model_json: Mapping[str, Any]
+) -> str | None:
     """Create a run rule with an inline structured evaluator.
 
     Using the run rules API with an inline schema is the only way LangSmith
@@ -284,14 +297,14 @@ def create_online_evaluator(api_key: str, ev: dict, project_id: str, model_json:
 
 
 def setup_online_evaluators(api_key: str) -> list:
-    from langsmith import Client
     from langchain_anthropic import ChatAnthropic
+    from langsmith import Client
 
     print(f"\n[3/4] Setting up online evaluators on project '{PROJECT_NAME}'...")
 
     ls_client = Client()
     project_id = get_project_id(ls_client, PROJECT_NAME)
-    model_json = ChatAnthropic(model="claude-haiku-4-5-20251001").to_json()
+    model_json = ChatAnthropic(model_name="claude-haiku-4-5-20251001").to_json()
 
     delete_existing_evaluators(api_key)
 
@@ -319,7 +332,7 @@ def setup_online_evaluators(api_key: str) -> list:
 # Experiments view while the PR's CI is running.
 _BASELINE_MODELS = [
     ("claude-haiku-4-5-20251001", "haiku"),
-    ("claude-sonnet-4-6",         "sonnet"),
+    ("claude-sonnet-4-6", "sonnet"),
 ]
 
 
@@ -327,7 +340,9 @@ def seed_baseline_experiments() -> None:
     """Run one baseline experiment per model in _BASELINE_MODELS."""
     from scripts.run_evals import run_evaluation
 
-    print(f"\n[4/4] Seeding {len(_BASELINE_MODELS)} baseline experiment(s) against '{DATASET_NAME}'...")
+    print(
+        f"\n[4/4] Seeding {len(_BASELINE_MODELS)} baseline experiment(s) against '{DATASET_NAME}'..."
+    )
 
     for model_id, label in _BASELINE_MODELS:
         os.environ["CHAT_LANGCHAIN_LITE_MODEL"] = model_id
@@ -341,14 +356,16 @@ def seed_baseline_experiments() -> None:
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--skip-baseline-experiments",
         action="store_true",
         help="Skip seeding baseline experiments (faster setup, but the dataset's "
-             "experiment list will be empty for the demo).",
+        "experiment list will be empty for the demo).",
     )
     args = parser.parse_args()
 
@@ -358,6 +375,7 @@ def main():
         sys.exit(1)
 
     from utils.context_hub import push_agents_md, push_demo_skills
+
     push_agents_md()
     push_demo_skills()
     ensure_project_exists()
@@ -366,17 +384,21 @@ def main():
 
     # Save state so cleanup can distinguish setup resources from Engine-added ones
     with open(".demo_state.json", "w") as f:
-        json.dump({
-            "run_rule_ids": our_rule_ids,
-        }, f, indent=2)
+        json.dump(
+            {
+                "run_rule_ids": our_rule_ids,
+            },
+            f,
+            indent=2,
+        )
 
     if not args.skip_baseline_experiments:
         seed_baseline_experiments()
 
-    print(f"\nSetup complete.")
+    print("\nSetup complete.")
     print(f"  Dataset:      {DATASET_NAME}")
     print(f"  Project:      {PROJECT_NAME}")
-    print(f"  Online evals: scoring all new traces automatically")
+    print("  Online evals: scoring all new traces automatically")
 
 
 if __name__ == "__main__":

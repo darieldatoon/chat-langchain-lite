@@ -88,6 +88,31 @@ In your fork: Actions → (if prompted) enable workflows. GitHub disables Action
 
 In LangSmith Engine, connect your LangSmith project (`LANGSMITH_PROJECT`) and your GitHub fork so Engine can read traces and open PRs against your repo.
 
+## Architecture
+
+`langgraph.json` defines both halves of the app:
+
+- `graphs.agent` → `agent/agent.py:build_agent` — the factory the platform calls to build the agent.
+- `http.app` → `frontend/app.py:app` — the FastHTML chat UI, mounted on the LangGraph
+  server as a custom route so it's served from the same origin (root `/`).
+
+The frontend doesn't import the graph; it streams responses from it over the LangGraph
+SDK on **loopback** — `http://localhost:2024` under `langgraph dev`, `http://localhost:8000`
+in the deployed container. The URL comes from `LANGGRAPH_API_URL` (see below).
+
+## Deploying to LangSmith Deployments
+
+1. Verify it runs locally first: `langgraph dev` (deployment fails if this does).
+2. Deploy via the LangSmith UI (**Deployments → New**) pointing at this repo, or build an
+   image with `langgraph build`.
+3. Set deployment environment variables:
+   - `LANGGRAPH_API_URL=http://localhost:8000` — the container serves the API on port 8000,
+     so the mounted frontend must reach the graph there (the default `:2024` is local-only).
+   - `SESSION_SECRET=<strong random value>` — signs the frontend's session cookie.
+   - Plus `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, etc.
+
+The chat UI is then served at the deployment's root URL.
+
 ## Demo flow
 
 ### Before the demo
@@ -99,8 +124,9 @@ python -m scripts.setup
 # Generate more traces including threads
 python -m scripts.generate_traces
 
-# Start the chat UI
-streamlit run app.py
+# Start the LangGraph server + chat UI (FastHTML frontend is mounted on it)
+langgraph dev
+# then open the chat UI at http://localhost:2024/
 ```
 
 ### During the demo
@@ -132,7 +158,7 @@ python -m scripts.cleanup
 | `python -m scripts.run_evals --threshold 0.7` | Exits with code 1 if scores < 0.7 (used in CI) |
 | `python -m scripts.cleanup` | Resets demo to clean state — see Cleanup section |
 | `python -m scripts.cleanup --full` | Same, plus deletes the LangSmith project (so Engine sees a fresh project on the next demo). Re-run `scripts.setup` after. |
-| `streamlit run app.py` | Start the Chat LangChain Lite UI |
+| `langgraph dev` | Start the LangGraph server with the FastHTML chat UI mounted at `http://localhost:2024/` |
 
 ## Evaluators
 
@@ -179,7 +205,13 @@ context/
 
 agent/
 ├── tools.py          # concept lookup, setup guides, security advice (Bugs 2 & 3)
-└── agent.py          # create_agent + FilesystemMiddleware (Bug 4 — max_tokens)
+└── agent.py          # create_agent + FilesystemMiddleware (Bug 4 — max_tokens);
+                      # build_agent() is the factory langgraph.json points graphs.agent at
+
+frontend/
+└── app.py           # FastHTML chat UI, mounted on the LangGraph server as a
+                     # custom endpoint (langgraph.json `http.app`); streams the
+                     # agent over the LangGraph SDK via SSE
 
 utils/
 └── context_hub.py    # setup-time push helper. Holds the *initial seed* for
@@ -199,7 +231,7 @@ scripts/
 ├── evals.yml                 # CI/CD: label-gated offline evals on PRs to main
 └── auto-label-engine-prs.yml # auto-tags Engine PRs with 'run-evals'
 
-app.py                # Chat LangChain Lite UI (Streamlit)
+langgraph.json        # LangGraph Deployments config: graph + mounted FastHTML app
 ```
 
 ## Cleanup

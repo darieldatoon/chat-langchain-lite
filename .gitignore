@@ -9,3 +9,7 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
+
+# LangGraph dev server state + FastHTML session-signing key
+.langgraph_api/
+.sesskey

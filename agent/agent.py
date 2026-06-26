@@ -1,12 +1,11 @@
 import os
 
+from deepagents.backends.context_hub import ContextHubBackend
+from deepagents.middleware.filesystem import FilesystemMiddleware
 from langchain.agents import create_agent
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessageChunk, ToolMessage
 from langchain_core.runnables import RunnableConfig
-
-from deepagents.middleware.filesystem import FilesystemMiddleware
-from deepagents.backends.context_hub import ContextHubBackend
 
 from agent.tools import TOOLS
 from context import CONTEXT_HUB_REPO, get_prompt
@@ -45,7 +44,11 @@ def build_agent():
         # temperature=0 for deterministic, reproducible demo behavior — the
         # intentional bugs (tone, scope, truncation) come from the prompt and
         # max_tokens, not sampling, so pinning temperature keeps traces consistent.
-        model=ChatAnthropic(model=_model_id(), max_tokens=300, temperature=0),
+        # langchain's ChatAnthropic field `model` carries the pydantic alias
+        # `model_name` (and max_tokens -> max_tokens_to_sample); ty reads the alias as
+        # the param name and misflags the documented kwargs, so the line below is
+        # suppressed. Correct at runtime (model resolves to a.model).
+        model=ChatAnthropic(model=_model_id(), max_tokens=300, temperature=0),  # ty: ignore[unknown-argument, missing-argument]
         tools=TOOLS,
         system_prompt=SYSTEM_PROMPT,
         middleware=[_readonly_context_hub_fs()],
@@ -71,8 +74,11 @@ def invoke_agent(question: str, thread_id: str | None = None) -> dict:
     """Run the agent once. Returns {output, tools_called, messages}."""
     result = build_agent().invoke(_user_msg(question), _config(thread_id))
     output = next(
-        (m.content for m in reversed(result["messages"])
-         if isinstance(getattr(m, "content", None), str) and m.content),
+        (
+            m.content
+            for m in reversed(result["messages"])
+            if isinstance(getattr(m, "content", None), str) and m.content
+        ),
         "",
     )
     tools_called = [m.name for m in result["messages"] if isinstance(m, ToolMessage)]

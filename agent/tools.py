@@ -72,7 +72,6 @@ pip install -U langchain langgraph langsmith langchain-anthropic
 ```
 
 Minimum supported Python is 3.10 for langchain/langgraph and 3.9 for langsmith.""",
-
     "environment": """Recommended environment variables for a typical LangChain + LangSmith app:
 
 ```bash
@@ -87,7 +86,6 @@ Load with python-dotenv at the top of your entrypoint:
 from dotenv import load_dotenv
 load_dotenv(override=True)
 ```""",
-
     "deployment": """LangGraph apps can be deployed on the LangGraph Platform:
 
 1. Add a langgraph.json at the project root pointing to your compiled graph.
@@ -102,7 +100,6 @@ Platform features:
 
 For self-hosting, the same image can be run via docker compose — see the
 self-hosted LangSmith docs for a worked example.""",
-
     "evaluation": """Build an offline evaluation in three steps:
 
 1. Create a dataset in LangSmith (UI or `client.create_dataset`).
@@ -151,7 +148,7 @@ def lookup_concept(concept_name: str) -> str:
             lines.append("")
             lines.append(data["summary"])
             return "\n".join(lines)
-    available = ", ".join(k.title() for k in CONCEPTS_DB.keys())
+    available = ", ".join(k.title() for k in CONCEPTS_DB)
     return f"Concept '{concept_name}' not found. Available concepts: {available}"
 
 

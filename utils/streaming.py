@@ -9,7 +9,7 @@ LangChain's `AIMessageChunk.content` shape differs by provider:
 the agent's stream loop doesn't have to branch on provider.
 """
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from langchain_core.messages import AIMessageChunk
 

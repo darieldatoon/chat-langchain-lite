@@ -57,7 +57,9 @@ def _judge_assertion(criterion: str, output: str, tools_called: list[str]) -> fl
         system=system_prompt,
         messages=[{"role": "user", "content": user_msg}],
     )
-    answer = response.content[0].text.strip().lower()
+    # content[0] is a block union (TextBlock | ThinkingBlock | ...); only TextBlock
+    # has `.text`. At runtime this is the model's text reply; getattr keeps it typed.
+    answer = getattr(response.content[0], "text", "").strip().lower()
     return 1.0 if answer.startswith("yes") else 0.0
 
 

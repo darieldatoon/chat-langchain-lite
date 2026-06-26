@@ -142,7 +142,6 @@ document, grouped by theme (features / fixes / chores).
 Markdown with `## Features`, `## Fixes`, `## Chores` sections and a final
 "Thanks to" contributor list.
 """,
-
     "support-ticket-triage-skill": """# support-ticket-triage-skill
 
 ## Purpose
@@ -167,7 +166,6 @@ required expertise so it lands with the right on-call.
 
 JSON: `{area, severity, expertise, confidence, suggested_owner}`
 """,
-
     "pr-review-summary-skill": """# pr-review-summary-skill
 
 ## Purpose
@@ -203,7 +201,7 @@ def push_demo_skills() -> None:
     can show that Context Hub holds more than just the agent's AGENTS.md —
     teams typically version a library of skills alongside their agents.
     """
-    print(f"\n[*] Seeding demo skills in Context Hub...")
+    print("\n[*] Seeding demo skills in Context Hub...")
 
     headers = {
         "x-api-key": os.getenv("LANGSMITH_API_KEY"),
