@@ -1,0 +1,25 @@
+scripts/provision.py
+  s_7d02ceb5dd13ce::t_3abb47c8655a76 1-53,55-88
+  s_7d02ceb5dd13ce::t_9e74b8667fc07d 54
+  s_7d02ceb5dd13ce::t_e524cb4d0c837b 89-95
+DEMO.md
+  s_7d02ceb5dd13ce::t_67b0df1bc1f18d 1-181
+Makefile
+  s_7d02ceb5dd13ce::t_756edb2b0fd1c5 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c5a1d002bdcb88dacb0e7b85c1f8edbfa3d317b1",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
