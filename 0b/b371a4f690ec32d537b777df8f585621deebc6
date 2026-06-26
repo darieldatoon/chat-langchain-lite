@@ -1,0 +1,33 @@
+frontend/app.py
+  s_7d02ceb5dd13ce::t_76e094b96b6613 772-793
+  s_7d02ceb5dd13ce::t_1f27b1de252e4f 285-291
+  s_7d02ceb5dd13ce::t_20e7ea9e54fe87 813-823
+  s_7d02ceb5dd13ce::t_48f22b14a06e26 553
+  s_7d02ceb5dd13ce::t_695b899e8284c9 590-593
+  s_7d02ceb5dd13ce::t_10ef7696ee5b45 506
+  s_7d02ceb5dd13ce::t_5ea37af3260f0f 349-351,358
+  s_7d02ceb5dd13ce::t_69e0abf0a3c848 273
+  s_7d02ceb5dd13ce::t_bc312dc3ed348d 664,672-679,686,688-689,691-693,700,704-705,707,709-717
+  s_7d02ceb5dd13ce::t_d3a1d72d3e397b 29
+  s_7d02ceb5dd13ce::t_097d6cd3cdf724 400-410,416
+  s_7d02ceb5dd13ce::t_a526acd6be41cc 609-619
+  s_7d02ceb5dd13ce::t_16f5ef8c83a8cd 650-655
+agent/agent.py
+  s_7d02ceb5dd13ce::t_93387f16fa4427 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "0bb371a4f690ec32d537b777df8f585621deebc6",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
