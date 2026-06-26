@@ -61,6 +61,7 @@ from starlette.responses import PlainTextResponse, RedirectResponse
 
 from chat_langchain_lite.config import USER_COMMENT_KEY as COMMENT_KEY
 from chat_langchain_lite.config import USER_SCORE_KEY as SCORE_KEY
+from chat_langchain_lite.config import settings
 
 load_dotenv(override=True)
 
@@ -626,13 +627,22 @@ async def send(session, q: str = ""):
     # Create the run ONCE here. The assistant bubble then joins this run's stream
     # over SSE, so EventSource reconnects re-attach instead of starting new runs.
     try:
-        run = await get_client(url=_api_url()).runs.create(
+        # Name + tag UI traffic consistently with the scripted path (agent._config),
+        # so the chat UI's runs aren't named after the bare graph ("agent").
+        # `run_name` is a valid RunnableConfig field the graph honors; the SDK's
+        # Config TypedDict just omits it, hence the ignore.
+        run = await get_client(url=_api_url()).runs.create(  # ty: ignore[no-matching-overload]
             thread_id,
             ASSISTANT_ID,
             input={"messages": [{"role": "user", "content": q}]},
             stream_mode="messages-tuple",
             stream_resumable=True,
             if_not_exists="create",
+            metadata={"demo": "true", "demo_type": settings.app_slug},
+            config={
+                "run_name": f"{settings.app_slug}-demo",
+                "tags": ["engine-demo", settings.context_hub_repo],
+            },
         )
     except Exception:
         return (

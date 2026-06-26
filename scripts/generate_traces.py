@@ -119,13 +119,13 @@ THREADS: list[dict] = [
 def main():
     from chat_langchain_lite.agent import invoke_agent
 
-    # --- Single-turn traces ---
+    # --- Single-turn traces (each its own thread, so they show in the Threads tab) ---
     print(f"Generating {len(QUERIES)} single-turn traces...\n")
     for i, query in enumerate(QUERIES):
         question = query["question"]
         print(f"[{i + 1}/{len(QUERIES)}] {question[:70]}...")
         try:
-            result = invoke_agent(question=question)
+            result = invoke_agent(question=question, thread_id=str(uuid.uuid4()))
             response = result["output"]
             print(
                 f"  → {response[:100].replace(chr(10), ' ')}{'...' if len(response) > 100 else ''}\n"
