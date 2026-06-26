@@ -1,0 +1,28 @@
+src/chat_langchain_lite/config.py
+  s_7d02ceb5dd13ce::t_cb5c965cb9ff0e 23-27
+  s_7d02ceb5dd13ce::t_56157d01e8accf 84-93
+src/chat_langchain_lite/web/app.py
+  s_7d02ceb5dd13ce::t_1c3d7dec1ef37c 62-64
+scripts/provision.py
+  s_7d02ceb5dd13ce::t_7fb32f1db3a013 59-63
+scripts/build_monitoring.py
+  s_7d02ceb5dd13ce::t_b07e19ef2735fa 1-158
+DEMO.md
+  s_7d02ceb5dd13ce::t_d1a433db371f74 167-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "54953a0c2a54bb57a5cad25c8a37424fce939262",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
