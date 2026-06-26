@@ -216,7 +216,10 @@ def delete_existing_evaluators(api_key: str) -> None:
     if resp.status_code == 200:
         for rule in resp.json():
             name = rule.get("display_name", "")
-            if name in our_keys or name.startswith("chat-lc-lite-demo-"):
+            # "chat-lc-lite-demo-" is the legacy prefix, kept for migration.
+            if name in our_keys or name.startswith(
+                (settings.online_eval_prefix, "chat-lc-lite-demo-")
+            ):
                 requests.delete(
                     f"https://api.smith.langchain.com/api/v1/runs/rules/{rule['id']}",
                     headers=_ls_headers(api_key),
@@ -233,7 +236,8 @@ def delete_existing_evaluators(api_key: str) -> None:
         ids_to_delete = [
             ev["id"]
             for ev in resp.json().get("evaluators", [])
-            if ev.get("name", "") in our_keys or ev.get("name", "").startswith("chat-lc-lite-demo-")
+            if ev.get("name", "") in our_keys
+            or ev.get("name", "").startswith((settings.online_eval_prefix, "chat-lc-lite-demo-"))
         ]
         for ev_id in ids_to_delete:
             requests.delete(
@@ -358,7 +362,7 @@ def seed_baseline_experiments() -> None:
 
     for model_id, label in _BASELINE_MODELS:
         os.environ["CHAT_LANGCHAIN_LITE_MODEL"] = model_id
-        prefix = f"baseline-{label}-chat-lc-lite-{settings.demo_presenter}"
+        prefix = settings.baseline_experiment_prefix(label)
         print(f"\n  → {model_id}: experiment '{prefix}-...'")
         scores = run_evaluation(experiment_prefix=prefix)
         print(f"  ✓ {label} complete: overall={scores.get('__overall__', 0.0):.2f}")

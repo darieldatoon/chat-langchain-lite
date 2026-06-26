@@ -65,8 +65,8 @@ def _run_one(model_id: str, label: str):
         result = evaluate(
             run_agent_on_example,
             data=settings.dataset_name,
-            experiment_prefix=f"pairwise-{label}-{settings.demo_presenter}",
-            metadata={"demo": "true", "demo_type": "chat-lc-lite", "pairwise": label},
+            experiment_prefix=settings.pairwise_experiment_prefix(label),
+            metadata={"demo": "true", "demo_type": settings.app_slug, "pairwise": label},
         )
     finally:
         os.environ.pop("CHAT_LANGCHAIN_LITE_MODEL", None)
@@ -85,7 +85,7 @@ def main() -> None:
     evaluate_comparative(
         (haiku.experiment_name, sonnet.experiment_name),
         evaluators=[_judge_better],
-        experiment_prefix=f"pairwise-compare-{settings.demo_presenter}",
+        experiment_prefix=settings.pairwise_compare_prefix,
     )
     print("  Done. See the pairwise comparison in the LangSmith Experiments view.")
 

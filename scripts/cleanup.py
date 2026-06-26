@@ -214,7 +214,7 @@ def delete_project() -> None:
     for d in ls_client.list_datasets():
         mine = (
             d.name in known
-            or (d.name.startswith("chat-lc-lite-") and d.name.endswith(presenter_suffix))
+            or (d.name.startswith(settings.resource_prefix) and d.name.endswith(presenter_suffix))
             or d.name.startswith(f"Evaluator: {settings.langsmith_project}")
         )
         if not mine:
@@ -225,9 +225,9 @@ def delete_project() -> None:
         except Exception as e:
             print(f"  Dataset delete failed for '{d.name}': {e}")
 
-    # 3. Context Hub — sweep every chat-lc-lite-* agent and skill (catches
+    # 3. Context Hub — sweep every <app-slug>-* agent and skill (catches
     # the current ones plus any leftovers from prior renames).
-    print("\n[*] Deleting Context Hub repos (chat-lc-lite-* sweep)...")
+    print(f"\n[*] Deleting Context Hub repos ({settings.resource_prefix}* sweep)...")
     api_key = os.environ.get("LANGSMITH_API_KEY", "")
     workspace_id = os.environ.get("LANGSMITH_WORKSPACE_ID", "")
     H = {"x-api-key": api_key}
@@ -245,7 +245,7 @@ def delete_project() -> None:
             continue
         for repo in r.json().get("repos", []):
             handle = repo.get("repo_handle", "")
-            if handle.startswith("chat-lc-lite-") or handle in {
+            if handle.startswith(settings.resource_prefix) or handle in {
                 "release-notes-skill",
                 "support-ticket-triage-skill",
                 "pr-review-summary-skill",

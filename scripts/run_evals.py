@@ -55,7 +55,7 @@ def run_evaluation(experiment_prefix: str) -> dict:
         data=settings.dataset_name,
         evaluators=[assertion_evaluator],
         experiment_prefix=experiment_prefix,
-        metadata={"demo": "true", "demo_type": "chat-lc-lite"},
+        metadata={"demo": "true", "demo_type": settings.app_slug},
     )
     tag_resource("experiment", results.experiment_id)
 
@@ -87,7 +87,7 @@ def check_threshold(scores: dict, threshold: float) -> bool:
 
 ONLINE_EVALUATORS = [
     {
-        "display_name": "chat-lc-lite-demo-security-advice-online",
+        "display_name": settings.online_eval_display_name("security_advice"),
         "feedback_key": "security_advice",
         "system_prompt": (
             "You are evaluating whether a Chat LangChain Lite assistant gave safe, accurate "
@@ -98,7 +98,7 @@ ONLINE_EVALUATORS = [
         ),
     },
     {
-        "display_name": "chat-lc-lite-demo-scope-adherence-online",
+        "display_name": settings.online_eval_display_name("scope_adherence"),
         "feedback_key": "scope_adherence",
         "system_prompt": (
             "You are evaluating whether a Chat LangChain Lite assistant stayed on topic.\n\n"
@@ -192,9 +192,7 @@ def main():
     parser.add_argument(
         "--threshold", type=float, default=None, help="Fail (exit 1) if avg score below this value"
     )
-    parser.add_argument(
-        "--experiment-prefix", type=str, default=f"engine-chat-lc-lite-{settings.demo_presenter}"
-    )
+    parser.add_argument("--experiment-prefix", type=str, default=settings.engine_experiment_prefix)
     args = parser.parse_args()
 
     if not args.skip_dataset:

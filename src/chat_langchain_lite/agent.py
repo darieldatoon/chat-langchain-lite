@@ -56,11 +56,11 @@ def build_agent():
 
 
 def _config(thread_id: str | None = None) -> RunnableConfig:
-    metadata = {"demo": "true", "demo_type": "chat-lc-lite", "model": _model_id()}
+    metadata = {"demo": "true", "demo_type": settings.app_slug, "model": _model_id()}
     if thread_id:
         metadata["thread_id"] = thread_id
     return RunnableConfig(
-        run_name="chat-lc-lite-demo",
+        run_name=f"{settings.app_slug}-demo",
         metadata=metadata,
         tags=["engine-demo", settings.context_hub_repo],
     )

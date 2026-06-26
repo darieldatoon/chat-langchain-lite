@@ -1,22 +1,24 @@
 """Shared demo configuration — the single source of truth for the names that
-scope this demo's LangSmith resources to a presenter.
+scope this demo's LangSmith resources.
 
 Lives in the runtime package (not in ``evals``) so the deployed agent can import
 it without pulling in the eval/CI tooling. ``evals`` and ``scripts`` import the
-backward-compatible module constants from here.
+``settings`` object from here.
 
 Only non-secret, name-scoping values live here. API keys stay in the environment
-and are read by the LangSmith / LangGraph clients directly — never loaded into
-this object.
+and are read by the LangSmith / LangGraph clients directly — never loaded here.
 
-Every dataset / project / Context-Hub-repo name is suffixed with
-``demo_presenter`` so multiple demoers in one LangSmith workspace don't collide.
-Set ``DEMO_PRESENTER`` (local ``.env``) or a GitHub repo variable (CI); defaults
-to ``robert``.
+Every name is built from one slug (``APP_SLUG``) plus ``demo_presenter`` so the
+whole demo is consistently named and multiple demoers in one workspace don't
+collide. Set ``DEMO_PRESENTER`` (local ``.env``) or a GitHub repo variable (CI).
 """
 
-from pydantic import ValidationInfo, computed_field, field_validator
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# The application slug — the single base for every demo resource name. Change it
+# here and every dataset / project / prompt / experiment / tag name follows.
+APP_SLUG = "chat-langchain-lite"
 
 
 class Settings(BaseSettings):
@@ -30,45 +32,76 @@ class Settings(BaseSettings):
     )
 
     demo_presenter: str = "robert"
-    langsmith_project: str = "chat-lc-lite"
+    # Tracing project. Defaults to f"{APP_SLUG}-{demo_presenter}" when unset, so it
+    # stays consistent with every other name; override with LANGSMITH_PROJECT.
+    langsmith_project: str = ""
     # Value of the LangSmith "Application" resource tag applied to every
-    # provisioned resource (so the UI can be filtered by application). Defaults
-    # to the project name; override with the APPLICATION env var.
+    # provisioned resource. Defaults to the project name; override with APPLICATION.
     application: str = ""
 
-    @field_validator("demo_presenter", "langsmith_project", mode="after")
+    @field_validator("demo_presenter", mode="after")
     @classmethod
-    def _fallback_when_blank(cls, value: str, info: ValidationInfo) -> str:
-        # A set-but-empty env var (DEMO_PRESENTER="") should fall back to the default.
-        stripped = (value or "").strip()
-        return stripped or str(cls.model_fields[info.field_name].default)
+    def _presenter_fallback(cls, value: str) -> str:
+        return (value or "").strip() or "robert"
+
+    @field_validator("langsmith_project", mode="after")
+    @classmethod
+    def _project_default(cls, value: str, info: ValidationInfo) -> str:
+        return (value or "").strip() or f"{APP_SLUG}-{info.data.get('demo_presenter', 'robert')}"
 
     @field_validator("application", mode="after")
     @classmethod
-    def _default_application(cls, value: str, info: ValidationInfo) -> str:
-        # Declared after langsmith_project, so it's already validated in info.data.
+    def _application_default(cls, value: str, info: ValidationInfo) -> str:
         return (value or "").strip() or info.data.get("langsmith_project", "")
 
-    @computed_field
+    # ── Derived resource names (all from APP_SLUG + demo_presenter) ───────────
+    @property
+    def app_slug(self) -> str:
+        return APP_SLUG
+
     @property
     def dataset_name(self) -> str:
-        return f"chat-lc-lite-scope-{self.demo_presenter}"
+        return f"{APP_SLUG}-scope-{self.demo_presenter}"
 
-    @computed_field
     @property
     def tool_adherence_dataset_name(self) -> str:
-        return f"chat-lc-lite-tools-{self.demo_presenter}"
+        return f"{APP_SLUG}-tools-{self.demo_presenter}"
 
-    @computed_field
     @property
     def context_hub_repo(self) -> str:
-        return f"chat-lc-lite-agent-{self.demo_presenter}"
+        return f"{APP_SLUG}-agent-{self.demo_presenter}"
 
-    @computed_field
     @property
     def judge_prompt_ref(self) -> str:
         """Prompt Hub identifier for the LLM-as-judge evaluator prompt."""
-        return f"chat-lc-lite-judge-{self.demo_presenter}"
+        return f"{APP_SLUG}-judge-{self.demo_presenter}"
+
+    @property
+    def resource_prefix(self) -> str:
+        """Common prefix for sweeping this demo's named resources in cleanup."""
+        return f"{APP_SLUG}-"
+
+    @property
+    def online_eval_prefix(self) -> str:
+        return f"{APP_SLUG}-demo-"
+
+    def online_eval_display_name(self, feedback_key: str) -> str:
+        return f"{APP_SLUG}-demo-{feedback_key}-online"
+
+    # ── Experiment prefixes (evaluate() appends a random suffix) ──────────────
+    def baseline_experiment_prefix(self, label: str) -> str:
+        return f"baseline-{label}-{APP_SLUG}-{self.demo_presenter}"
+
+    @property
+    def engine_experiment_prefix(self) -> str:
+        return f"engine-{APP_SLUG}-{self.demo_presenter}"
+
+    def pairwise_experiment_prefix(self, label: str) -> str:
+        return f"pairwise-{label}-{APP_SLUG}-{self.demo_presenter}"
+
+    @property
+    def pairwise_compare_prefix(self) -> str:
+        return f"pairwise-compare-{APP_SLUG}-{self.demo_presenter}"
 
 
 settings = Settings()

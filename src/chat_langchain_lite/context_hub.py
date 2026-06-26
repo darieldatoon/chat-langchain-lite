@@ -89,7 +89,7 @@ def push_agents_md() -> None:
     # 1. tenant_handle (only if not already set)
     ws_settings = requests.get(f"{_API}/settings", headers=headers).json()
     if not ws_settings.get("tenant_handle"):
-        handle = "chat-lc-lite"
+        handle = settings.app_slug
         requests.post(f"{_API}/settings/handle", headers=headers, json={"tenant_handle": handle})
         print(f"  Set workspace tenant_handle to '{handle}'.")
 
