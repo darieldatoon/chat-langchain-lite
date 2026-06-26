@@ -1,0 +1,10 @@
+# Git-ignored files copied into new worktrees created by Claude Code.
+# Uses .gitignore-style patterns. These files are not tracked by git but are
+# needed for a worktree to run, so they are copied from the primary checkout.
+
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Intentionally NOT included:
+#   .venv/  -> contains absolute paths that break when copied; run `uv sync` instead
