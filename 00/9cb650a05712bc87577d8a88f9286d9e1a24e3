@@ -1,0 +1,52 @@
+scripts/cleanup.py
+  s_7d02ceb5dd13ce::t_90aae03e506c2c 52,388
+  s_7d02ceb5dd13ce::t_abbe426a0fb4c6 212
+  s_7d02ceb5dd13ce::t_d0d54e3337320e 205
+  s_7d02ceb5dd13ce::t_5dc973cad39779 33
+  s_7d02ceb5dd13ce::t_0b80e220928fe4 53,89,211
+  s_7d02ceb5dd13ce::t_f4dc34faa0b11d 141,143,190,192-193,196,217,389
+src/chat_langchain_lite/context_hub.py
+  s_7d02ceb5dd13ce::t_8e5b731894c06d 24
+  s_7d02ceb5dd13ce::t_f6501380ed9d9a 110-112
+  s_7d02ceb5dd13ce::t_2568a083f62220 80,101
+  s_7d02ceb5dd13ce::t_91c8d1a00a0455 90-91
+evals/dataset.py
+  s_7d02ceb5dd13ce::t_edb8ffd88dd9c5 170
+  s_7d02ceb5dd13ce::t_d5effacd860126 29-30
+  s_7d02ceb5dd13ce::t_8669b504b4ba1d 157
+scripts/setup.py
+  s_7d02ceb5dd13ce::t_f3b0ee7375e742 173,180,185,343,398
+  s_7d02ceb5dd13ce::t_44f7b679eb5002 348
+  s_7d02ceb5dd13ce::t_b7b392fd90ecae 38
+  s_7d02ceb5dd13ce::t_a6996024b0dd59 155,157,302,305,399
+scripts/run_evals.py
+  s_7d02ceb5dd13ce::t_e20b0dea79c779 50,54,201
+  s_7d02ceb5dd13ce::t_f374217f6693cb 124,131,209
+  s_7d02ceb5dd13ce::t_4eb93f896231e9 194
+  s_7d02ceb5dd13ce::t_8268303bdc4274 22
+  s_7d02ceb5dd13ce::t_f6501380ed9d9a 126-128
+src/chat_langchain_lite/context.py
+  s_7d02ceb5dd13ce::t_133dcb18b0e3b5 8-9,14,16,26-29,33
+src/chat_langchain_lite/config.py
+  s_7d02ceb5dd13ce::t_e922188013dc47 59
+src/chat_langchain_lite/agent.py
+  s_7d02ceb5dd13ce::t_df42a429ad9028 65
+  s_7d02ceb5dd13ce::t_d8a946e3570047 10-11
+  s_7d02ceb5dd13ce::t_b9a77e8c1d061e 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "009cb650a05712bc87577d8a88f9286d9e1a24e3",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
