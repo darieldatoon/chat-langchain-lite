@@ -20,6 +20,7 @@ the deployed container. The base URL comes from ``LANGGRAPH_API_URL`` and is
 constrained to loopback (see ``_api_url``).
 """
 
+import asyncio
 import base64
 import contextlib
 import json
@@ -221,8 +222,11 @@ button{font-family:inherit;cursor:pointer;}
   color:var(--muted);border-radius:7px;padding:4px 8px;font-size:13px;line-height:1;
   transition:background .12s,color .12s,border-color .12s;}
 .fb-btn:hover,.fb-cmt-toggle:hover{background:var(--panel-2);color:var(--text);}
-.fb-btn.chosen{color:var(--accent-2);border-color:var(--accent);background:var(--panel-2);}
+/* Selected vote: filled accent, stays bright even while disabled. */
+.fb-btn.sel{color:#fff;border-color:var(--accent);background:var(--accent);}
 .fb-btn:disabled{cursor:default;}
+.fb-btn.sel:disabled{opacity:1;}
+.fb:has(.fb-btn.sel) .fb-btn:not(.sel){opacity:.4;}
 .fb-trace{color:var(--muted);font-size:12px;padding:4px 8px;border-radius:7px;
   margin-left:auto;transition:color .12s,background .12s;}
 .fb-trace:hover{color:var(--accent-2);background:var(--panel-2);}
@@ -334,13 +338,16 @@ function postFeedback(body){
     body:new URLSearchParams(body)});
 }
 function vote(btn){
-  var fb=btn.closest('.fb');
-  // categorical toggle: highlight the chosen thumb, upsert the one score record
-  fb.querySelectorAll('.fb-btn').forEach(b=>b.classList.remove('chosen'));
-  btn.classList.add('chosen');
+  var fb=btn.closest('.fb'), prev=fb.querySelector('.fb-btn.sel');
+  // Select clicked (highlight + disable); re-enable the other so you can switch.
+  fb.querySelectorAll('.fb-btn').forEach(b=>{ b.classList.remove('sel'); b.disabled=false; });
+  btn.classList.add('sel'); btn.disabled=true;
   postFeedback({run_id:btn.dataset.run,kind:'score',value:btn.dataset.score})
     .then(r=>{ if(!r.ok) throw 0; })
-    .catch(()=>{ btn.classList.remove('chosen'); });
+    .catch(()=>{                       // revert to prior selection on failure
+      btn.classList.remove('sel'); btn.disabled=false;
+      if(prev){ prev.classList.add('sel'); prev.disabled=true; }
+    });
 }
 function sendComment(btn){
   var fb=btn.closest('.fb'), input=fb.querySelector('.fb-cmt-input'), text=(input.value||'').trim();
@@ -412,45 +419,26 @@ def user_bubble(text: str) -> FT:
     return Div(_avatar("user"), Div(Div(text, cls="bubble"), cls="msg-main"), cls="msg user")
 
 
-def history_assistant_bubble(text: str) -> FT:
-    # Markdown rendered client-side from escaped textContent (no feedback bar on history).
-    return Div(
-        _avatar("assistant"),
-        Div(Div(text, cls="bubble md-live"), cls="msg-main"),
-        cls="msg assistant",
-    )
+def _thumb(icon: str, score: str, run_id: str, title: str, selected: bool) -> FT:
+    """One 👍/👎 button. The selected one is highlighted AND disabled (you switch
+    by clicking the other), giving a clear, persistent indication of your vote."""
+    if selected:
+        return Button(icon, cls="fb-btn sel", title=title, data_score=score,
+                      data_run=run_id, disabled=True)
+    return Button(icon, cls="fb-btn", title=title, data_score=score, data_run=run_id)
 
 
-def assistant_bubble(run_id: str) -> FT:
-    """A live assistant message that *joins* an already-created run over SSE.
-
-    The run is created once by POST /send; the SSE endpoint only joins its
-    stream. EventSource auto-reconnects re-attach to the same run instead of
-    starting a new one, so the thread can't accumulate duplicate turns.
-    """
-    src = f"/stream?run={run_id}"
-    body = Div(Span(cls="cursor"), cls="bubble md-live", sse_swap="token", hx_swap="innerHTML")
-    actions = Div(sse_swap="actions", hx_swap="innerHTML")
-    return Div(
-        _avatar("assistant"),
-        Div(body, actions, cls="msg-main"),
-        cls="msg assistant",
-        hx_ext="sse",
-        sse_connect=src,
-        sse_close="done",
-    )
-
-
-def action_bar(run_id: str) -> FT:
+def fb_bar(run_id: str, score: int | None = None) -> FT:
     """Feedback (👍/👎 + optional comment) + trace link for one response.
 
-    Buttons carry the run_id; the browser POSTs to the same-origin /feedback
-    endpoint, which upserts one feedback record per (run, key) so switching the
-    vote updates it instead of piling up duplicates.
+    Used identically for live and historical messages. `score` (1/0/None) is the
+    user's current vote, recovered from LangSmith for history so the selection
+    persists across thread switches. Votes POST to the same-origin /feedback
+    endpoint, which upserts one record per (run, key).
     """
     return Div(
-        Button("👍", cls="fb-btn", title="Helpful", data_score="1", data_run=run_id),
-        Button("👎", cls="fb-btn", title="Not helpful", data_score="0", data_run=run_id),
+        _thumb("👍", "1", run_id, "Helpful", score == 1),
+        _thumb("👎", "0", run_id, "Not helpful", score == 0),
         Button("💬 Comment", cls="fb-cmt-toggle", title="Add a comment"),
         A("↗ Trace", cls="fb-trace", href=f"/trace/{run_id}", target="_blank", rel="noopener"),
         Div(
@@ -461,6 +449,33 @@ def action_bar(run_id: str) -> FT:
         ),
         cls="fb",
     )
+
+
+def assistant_live(run_id: str) -> FT:
+    """A live assistant message that *joins* an already-created run over SSE.
+
+    The run is created once by POST /send; the SSE endpoint only joins its stream,
+    so EventSource reconnects re-attach to the same run (no duplicate turns). The
+    feedback/trace bar is swapped into the actions slot when the stream completes.
+    """
+    body = Div(Span(cls="cursor"), cls="bubble md-live", sse_swap="token", hx_swap="innerHTML")
+    actions = Div(sse_swap="actions", hx_swap="innerHTML")
+    return Div(
+        _avatar("assistant"),
+        Div(body, actions, cls="msg-main"),
+        cls="msg assistant",
+        hx_ext="sse",
+        sse_connect=f"/stream?run={run_id}",
+        sse_close="done",
+    )
+
+
+def assistant_static(run_id: str | None, text: str, score: int | None = None) -> FT:
+    """A rendered (historical) assistant message with the same feedback/trace bar."""
+    main = [Div(text, cls="bubble md-live")]
+    if run_id:
+        main.append(fb_bar(run_id, score))
+    return Div(_avatar("assistant"), Div(*main, cls="msg-main"), cls="msg assistant")
 
 
 def empty_state() -> FT:
@@ -573,7 +588,7 @@ async def send(session, q: str = ""):
         stream_resumable=True,
         if_not_exists="create",
     )
-    return (user_bubble(q), assistant_bubble(run["run_id"]))
+    return (user_bubble(q), assistant_live(run["run_id"]))
 
 
 @rt("/stream")
@@ -605,8 +620,8 @@ async def stream(session, run: str = ""):
                     yield sse_message(acc, event="token")
         except Exception as exc:  # noqa: BLE001 - surface a friendly error, never secrets
             yield sse_message(f"⚠️ {type(exc).__name__}: request failed.", event="token")
-        # Action bar (feedback + trace) once the response is complete.
-        yield sse_message(action_bar(run_id), event="actions")
+        # Feedback + trace bar once the response is complete.
+        yield sse_message(fb_bar(run_id), event="actions")
         yield sse_message("", event="done")
 
     return EventStream(gen())
@@ -688,25 +703,63 @@ def _ensure_score_config() -> None:
             _ls().create_feedback_config(SCORE_KEY, feedback_config=_SCORE_CONFIG)
 
 
+async def _thread_run_ids(client, thread_id: str) -> list[str]:
+    """Successful run ids for a thread, oldest-first (one per assistant turn)."""
+    try:
+        runs = await client.runs.list(thread_id, limit=100, status="success")
+    except Exception:  # noqa: BLE001
+        return []
+    runs = [r for r in runs if isinstance(r, dict) and r.get("run_id")]
+    runs.sort(key=lambda r: r.get("created_at") or "")
+    return [r["run_id"] for r in runs]
+
+
+def _thread_votes(run_ids: list[str]) -> dict[str, int]:
+    """Current 👍/👎 score per run, recovered from LangSmith (for history)."""
+    if not run_ids:
+        return {}
+    try:
+        fbs = _ls().list_feedback(run_ids=run_ids, feedback_key=[SCORE_KEY])
+        return {str(f.run_id): int(f.score) for f in fbs if f.score is not None}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 async def _history_bubbles(thread_id: str) -> list[FT]:
-    """Render a thread's prior messages from the graph's own state."""
+    """Render a thread's prior messages from the graph's own state.
+
+    Each assistant turn is keyed to its run (oldest-first) so it gets the same
+    feedback/trace bar as a live message, with the stored vote pre-selected.
+    """
     if not _UUID_RE.match(thread_id or ""):
         return []
+    client = get_client(url=_api_url())
     try:
-        state = await get_client(url=_api_url()).threads.get_state(thread_id)
+        state = await client.threads.get_state(thread_id)
     except Exception:  # noqa: BLE001
         return []
     values = state.get("values") if isinstance(state, dict) else None
     messages = (values or {}).get("messages") if isinstance(values, dict) else None
     if not isinstance(messages, list):
         return []
+
+    run_ids = await _thread_run_ids(client, thread_id)
+    # _thread_votes uses the *sync* LangSmith client; offload it so we don't make
+    # a blocking call inside this async route (langgraph dev rejects those).
+    votes = await asyncio.to_thread(_thread_votes, run_ids)
+
     bubbles: list[FT] = []
     pending_ai: list[str] = []
+    turn = 0
 
     def _flush_ai() -> None:
+        nonlocal turn
         if pending_ai:
-            bubbles.append(history_assistant_bubble("\n\n".join(pending_ai)))
+            rid = run_ids[turn] if turn < len(run_ids) else None
+            score = votes.get(rid) if rid else None
+            bubbles.append(assistant_static(rid, "\n\n".join(pending_ai), score))
             pending_ai.clear()
+            turn += 1
 
     for m in messages:
         if not isinstance(m, dict):
