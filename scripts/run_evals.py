@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
+from scripts.resource_tags import tag_resource  # noqa: E402 — env must load first
 
 
 def run_agent_on_example(inputs: dict) -> dict:
@@ -56,6 +57,7 @@ def run_evaluation(experiment_prefix: str) -> dict:
         experiment_prefix=experiment_prefix,
         metadata={"demo": "true", "demo_type": "chat-lc-lite"},
     )
+    tag_resource("experiment", results.experiment_id)
 
     # One feedback per example: assertion_evaluator returns
     # {key: "assertions_pass_rate", score: 0.0..1.0}. Overall is the mean

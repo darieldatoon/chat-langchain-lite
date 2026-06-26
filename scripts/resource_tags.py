@@ -16,6 +16,7 @@ Usage from a setup script::
 """
 
 import os
+from uuid import UUID
 
 import requests
 from dotenv import load_dotenv
@@ -79,7 +80,7 @@ def _ensure_value_id(headers: dict[str, str]) -> str | None:
     return _value_id_cache
 
 
-def tag_resource(resource_type: str, resource_id: str | None) -> None:
+def tag_resource(resource_type: str, resource_id: str | UUID | None) -> None:
     """Best-effort: tag a resource with ``Application=<settings.application>``.
 
     Never raises — provisioning continues even if tagging fails.

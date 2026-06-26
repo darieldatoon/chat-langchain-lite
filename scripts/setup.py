@@ -310,12 +310,14 @@ def setup_online_evaluators(api_key: str) -> list:
 
     delete_existing_evaluators(api_key)
 
+    # Online evaluators here are run rules (automations) bound to the project, not
+    # standalone workspace "evaluator" resources — so they aren't individually
+    # taggable. They're already scoped by the project's Application tag above.
     our_rule_ids = []
     for ev in EVALUATORS:
         rule_id = create_online_evaluator(api_key, ev, project_id, model_json)
         if rule_id:
             our_rule_ids.append(rule_id)
-            tag_resource("evaluator", rule_id)
 
     print("\n  Every future trace will be automatically scored for:")
     for ev in EVALUATORS:
