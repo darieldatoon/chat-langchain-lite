@@ -1,0 +1,23 @@
+scripts/generate_traces.py
+  s_7d02ceb5dd13ce::t_b359fcf5cb7d6c 122,128
+src/chat_langchain_lite/web/app.py
+  s_7d02ceb5dd13ce::t_b672ab03211fbb 630-634,641
+  s_7d02ceb5dd13ce::t_9426e305ab76aa 642-645
+  s_7d02ceb5dd13ce::t_5936f11097181f 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f1ae4790784df2641336b174dd1c9acc0f33ab35",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
