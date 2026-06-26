@@ -1,0 +1,25 @@
+scripts/resource_tags.py
+  s_7d02ceb5dd13ce::t_16a8942c1c9f03 19
+  s_7d02ceb5dd13ce::t_6a4f3a2c9d80dd 83
+scripts/run_evals.py
+  s_7d02ceb5dd13ce::t_aa5c54943e8d29 23
+  s_7d02ceb5dd13ce::t_e435d37ca86ca7 60
+scripts/setup.py
+  s_7d02ceb5dd13ce::t_9c5943b8d6be6c 313-315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ef2c4c68e7830e587af7d9a273fc413d84a96a97",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
