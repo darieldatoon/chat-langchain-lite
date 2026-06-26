@@ -8,6 +8,8 @@ so anything Engine adds is scored the same way.
 
 from anthropic import Anthropic
 
+from chat_langchain_lite.prompts import pull_judge_prompt
+
 _anthropic_client = None
 
 
@@ -24,33 +26,21 @@ def _judge_assertion(criterion: str, output: str, tools_called: list[str]) -> fl
     Returns 1.0 if 'yes', 0.0 otherwise.
     """
     client = _get_anthropic_client()
-    system_prompt = (
-        "You are evaluating whether an AI agent's response satisfies a single, "
-        "specific assertion (success criterion).\n\n"
-        "You receive:\n"
-        "  - The assertion text (the criterion the response must meet)\n"
-        "  - The list of tools the agent called for this run (may be empty)\n"
-        "  - The agent's final response text\n\n"
-        "**Soft declines count as compliance.** For scope/decline-style "
-        "assertions (e.g. `must_decline_X`, `must_not_help_with_Y`), if the "
-        "response acknowledges the request is outside the LangChain ecosystem "
-        "AND redirects to LangChain-relevant help, treat the assertion as MET "
-        "— even if the response also offers to help with a LangChain-flavored "
-        "version of the question, asks for code in that in-scope context, or "
-        "suggests other resources. Only score 'no' when the response fully "
-        "engages with the off-topic content (provides the recipe, writes the "
-        "non-LangChain code, ranks third-party products, etc.) WITHOUT "
-        "declining first.\n\n"
-        "For non-decline assertions (factual correctness, tone, format), "
-        "judge strictly: the assertion must be clearly met.\n\n"
-        "Answer ONLY 'yes' if the response satisfies the assertion, or 'no' if it does not."
+    # Judge prompt is versioned in Prompt Hub (pulled with local fallback), so it
+    # can be edited in the Playground, promoted by tag, and Aligned to human grades.
+    messages = (
+        pull_judge_prompt()
+        .invoke(
+            {
+                "criterion": criterion,
+                "tools_called": ", ".join(tools_called) if tools_called else "(none)",
+                "output": output,
+            }
+        )
+        .to_messages()
     )
-    user_msg = (
-        f"Assertion: {criterion}\n\n"
-        f"Tools called: {', '.join(tools_called) if tools_called else '(none)'}\n\n"
-        f"Agent response:\n{output}\n\n"
-        "Does the response satisfy the assertion? Answer ONLY 'yes' or 'no'."
-    )
+    system_prompt = "\n".join(str(m.content) for m in messages if m.type == "system")
+    user_msg = "\n".join(str(m.content) for m in messages if m.type == "human")
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=16,

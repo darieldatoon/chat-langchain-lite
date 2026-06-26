@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     def context_hub_repo(self) -> str:
         return f"chat-lc-lite-agent-{self.demo_presenter}"
 
+    @computed_field
+    @property
+    def judge_prompt_ref(self) -> str:
+        """Prompt Hub identifier for the LLM-as-judge evaluator prompt."""
+        return f"chat-lc-lite-judge-{self.demo_presenter}"
+
 
 settings = Settings()
 """Import this and read attributes directly, e.g. ``settings.dataset_name``."""

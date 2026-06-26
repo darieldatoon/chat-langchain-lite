@@ -37,15 +37,17 @@ class Step:
 # phase's script lands — keep them here so the plan reads end-to-end.
 PLAN: list[Step] = [
     # ── Build ──────────────────────────────────────────────────────────────
+    # Prompt Hub first: the judge prompt must exist before the baseline
+    # experiments (run inside scripts.setup) pull it.
+    Step("Build", "Seed Prompt Hub with the LLM-as-judge evaluator prompt", "scripts.push_prompts"),
     Step(
         "Build",
         "Seed Context Hub (AGENTS.md + demo skills), project, dataset, "
         "online evaluators, baseline experiments",
         "scripts.setup",
     ),
-    Step("Build", "Seed Prompt Hub with the LLM-as-judge evaluator prompts", None),
     # ── Test ───────────────────────────────────────────────────────────────
-    Step("Test", "Seed the pairwise-comparison dataset", None),
+    Step("Test", "Pairwise experiment (Haiku vs Sonnet, judged head-to-head)", None),
     # ── Monitor (needs traffic + monitoring infra) ───────────────────────────
     Step(
         "Monitor", "Generate demo traffic (single-turn traces + threads)", "scripts.generate_traces"

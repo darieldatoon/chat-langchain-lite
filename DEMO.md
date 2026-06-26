@@ -99,10 +99,11 @@ Context Hub (`settings.context_hub_repo`), not the repo; plus a library of demo
 skills. *Say:* "the agent's operating context is versioned and editable outside a
 deploy — this is where defects 1 & 2 live, and where we'll fix them."
 
-**Prompt Hub** 🔜 *Phase 1* — *Show:* the LLM-as-judge evaluator prompts,
-versioned in Prompt Hub and pulled via `pull_prompt()` with a `production` tag.
-*Say:* "Context Hub = how the agent *operates*; Prompt Hub = how we *evaluate* —
-edit in Playground, version, promote by tag." (Sets up Align Evaluators.)
+**Prompt Hub** ✅ — *Show:* the LLM-as-judge prompt (`chat-lc-lite-judge-<presenter>`),
+versioned in Prompt Hub and pulled by the offline evaluator via `pull_prompt(...:production)`
+(`chat_langchain_lite/prompts.py`); seeded by `scripts/push_prompts.py`. *Say:* "Context
+Hub = how the agent *operates*; Prompt Hub = how we *evaluate* — edit the judge in
+Playground, version it, promote by tag." (Sets up Align Evaluators.)
 
 ### 2 · Test
 
