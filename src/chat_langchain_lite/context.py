@@ -5,15 +5,15 @@ in this repo. Engine should look here to find where the agent's context
 comes from — but the actual prompt content is edited in the Context Hub
 UI, not in the codebase.
 
-The repo name is scoped per-presenter via LANGSMITH_PROJECT (see
-evals.dataset.DEMO_PRESENTER for derivation).
+The repo name is scoped per-presenter (see ``settings.context_hub_repo``,
+derived from ``DEMO_PRESENTER`` in ``chat_langchain_lite.config``).
 """
 
 from langsmith import Client
 
-from chat_langchain_lite.config import CONTEXT_HUB_REPO
+from chat_langchain_lite.config import settings
 
-__all__ = ["CONTEXT_HUB_REPO", "get_prompt"]
+__all__ = ["get_prompt"]
 
 
 def get_prompt() -> str:
@@ -23,14 +23,14 @@ def get_prompt() -> str:
     been seeded yet — run `python -m scripts.setup` to initialize it.
     """
     # The AGENTS.md served from Context Hub is initially populated from THIS
-    # repo — see utils/context_hub.py (`_SEED_AGENTS_MD`), pushed to the hub by
-    # `scripts/setup.py`. So the agent's instructions have a repo-side source of
-    # truth: a fix to the prompt can be applied BOTH as a PR to that seed file
-    # AND by updating the live Context Hub repo (`CONTEXT_HUB_REPO`).
+    # repo — see chat_langchain_lite/context_hub.py (`_SEED_AGENTS_MD`), pushed to
+    # the hub by `scripts/setup.py`. So the agent's instructions have a repo-side
+    # source of truth: a fix to the prompt can be applied BOTH as a PR to that seed
+    # file AND by updating the live Context Hub repo (`settings.context_hub_repo`).
     try:
         # `.files[...]` is a FileEntry | AgentEntry | SkillEntry union; only FileEntry
         # has `.content`. The AGENTS.md entry is always a FileEntry at runtime.
-        entry = Client().pull_agent(CONTEXT_HUB_REPO).files["AGENTS.md"]
+        entry = Client().pull_agent(settings.context_hub_repo).files["AGENTS.md"]
         return getattr(entry, "content", "")
     except Exception:
         return ""

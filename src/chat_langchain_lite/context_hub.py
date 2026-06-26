@@ -21,7 +21,7 @@ import requests
 from langsmith import Client
 from langsmith.schemas import FileEntry
 
-from chat_langchain_lite.config import CONTEXT_HUB_REPO
+from chat_langchain_lite.config import settings
 
 _API = "https://api.smith.langchain.com/api/v1"
 
@@ -77,7 +77,7 @@ def push_agents_md() -> None:
          filters on; SDK's push_agent doesn't expose it).
       3. Commits the seed content via the SDK.
     """
-    print(f"\n[*] Seeding Context Hub repo '{CONTEXT_HUB_REPO}' with initial AGENTS.md...")
+    print(f"\n[*] Seeding Context Hub repo '{settings.context_hub_repo}' with initial AGENTS.md...")
 
     headers = {
         "x-api-key": os.getenv("LANGSMITH_API_KEY"),
@@ -87,8 +87,8 @@ def push_agents_md() -> None:
         headers["X-Tenant-Id"] = ws
 
     # 1. tenant_handle (only if not already set)
-    settings = requests.get(f"{_API}/settings", headers=headers).json()
-    if not settings.get("tenant_handle"):
+    ws_settings = requests.get(f"{_API}/settings", headers=headers).json()
+    if not ws_settings.get("tenant_handle"):
         handle = "chat-lc-lite"
         requests.post(f"{_API}/settings/handle", headers=headers, json={"tenant_handle": handle})
         print(f"  Set workspace tenant_handle to '{handle}'.")
@@ -98,7 +98,7 @@ def push_agents_md() -> None:
         f"{_API}/repos/",
         headers=headers,
         json={
-            "repo_handle": CONTEXT_HUB_REPO,
+            "repo_handle": settings.context_hub_repo,
             "repo_type": "agent",
             "source": "internal",
             "is_public": False,
@@ -107,7 +107,9 @@ def push_agents_md() -> None:
     )
 
     # 3. Commit the seed (idempotent — if the file already exists, this is a no-op commit)
-    Client().push_agent(CONTEXT_HUB_REPO, files={"AGENTS.md": FileEntry(content=_SEED_AGENTS_MD)})
+    Client().push_agent(
+        settings.context_hub_repo, files={"AGENTS.md": FileEntry(content=_SEED_AGENTS_MD)}
+    )
     print(f"  Pushed {len(_SEED_AGENTS_MD)} chars.")
 
 

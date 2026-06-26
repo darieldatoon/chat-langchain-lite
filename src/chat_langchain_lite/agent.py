@@ -7,7 +7,8 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
 
-from chat_langchain_lite.context import CONTEXT_HUB_REPO, get_prompt
+from chat_langchain_lite.config import settings
+from chat_langchain_lite.context import get_prompt
 from chat_langchain_lite.tools import TOOLS
 
 # AGENTS.md is the agent's system prompt — pulled fresh from LangSmith
@@ -33,7 +34,7 @@ _READONLY_FS_TOOLS = {"ls", "read_file", "glob", "grep"}
 
 
 def _readonly_context_hub_fs() -> FilesystemMiddleware:
-    fs = FilesystemMiddleware(backend=ContextHubBackend(CONTEXT_HUB_REPO))
+    fs = FilesystemMiddleware(backend=ContextHubBackend(settings.context_hub_repo))
     fs.tools = [t for t in fs.tools if t.name in _READONLY_FS_TOOLS]
     return fs
 
@@ -61,7 +62,7 @@ def _config(thread_id: str | None = None) -> RunnableConfig:
     return RunnableConfig(
         run_name="chat-lc-lite-demo",
         metadata=metadata,
-        tags=["engine-demo", CONTEXT_HUB_REPO],
+        tags=["engine-demo", settings.context_hub_repo],
     )
 
 

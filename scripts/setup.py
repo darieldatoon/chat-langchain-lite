@@ -35,9 +35,8 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from evals.dataset import DATASET_NAME, DEMO_PRESENTER  # noqa: E402 — env must load first
+from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
 
-PROJECT_NAME = os.getenv("LANGSMITH_PROJECT", "chat-lc-lite")
 WORKSPACE_ID = os.getenv("LANGSMITH_WORKSPACE_ID", "").strip()
 
 
@@ -153,9 +152,9 @@ def ensure_project_exists() -> None:
     """
     from chat_langchain_lite.agent import invoke_agent
 
-    print(f"\n[1/4] Creating LangSmith project '{PROJECT_NAME}'...")
+    print(f"\n[1/4] Creating LangSmith project '{settings.langsmith_project}'...")
     invoke_agent("What is LangSmith?")
-    print(f"  Project '{PROJECT_NAME}' is ready.")
+    print(f"  Project '{settings.langsmith_project}' is ready.")
 
 
 # ── Dataset ────────────────────────────────────────────────────────────────────
@@ -171,19 +170,19 @@ def setup_dataset() -> str:
 
     from evals.dataset import create_or_update_dataset
 
-    print(f"\n[2/4] Setting up dataset '{DATASET_NAME}'...")
+    print(f"\n[2/4] Setting up dataset '{settings.dataset_name}'...")
     create_or_update_dataset()
     # The tool-adherence dataset implementation is preserved in evals/dataset.py
     # (create_or_update_tool_adherence_dataset) but not seeded for the demo.
 
     ls_client = Client()
     ls_client.update_dataset_tag(
-        dataset_name=DATASET_NAME,
+        dataset_name=settings.dataset_name,
         as_of=datetime.now(UTC),
         tag="baseline",
     )
     print("  Tagged dataset version as 'baseline'.")
-    return DATASET_NAME
+    return settings.dataset_name
 
 
 # ── Online evaluators ──────────────────────────────────────────────────────────
@@ -300,10 +299,10 @@ def setup_online_evaluators(api_key: str) -> list:
     from langchain_anthropic import ChatAnthropic
     from langsmith import Client
 
-    print(f"\n[3/4] Setting up online evaluators on project '{PROJECT_NAME}'...")
+    print(f"\n[3/4] Setting up online evaluators on project '{settings.langsmith_project}'...")
 
     ls_client = Client()
-    project_id = get_project_id(ls_client, PROJECT_NAME)
+    project_id = get_project_id(ls_client, settings.langsmith_project)
     model_json = ChatAnthropic(model_name="claude-haiku-4-5-20251001").to_json()
 
     delete_existing_evaluators(api_key)
@@ -341,12 +340,12 @@ def seed_baseline_experiments() -> None:
     from scripts.run_evals import run_evaluation
 
     print(
-        f"\n[4/4] Seeding {len(_BASELINE_MODELS)} baseline experiment(s) against '{DATASET_NAME}'..."
+        f"\n[4/4] Seeding {len(_BASELINE_MODELS)} baseline experiment(s) against '{settings.dataset_name}'..."
     )
 
     for model_id, label in _BASELINE_MODELS:
         os.environ["CHAT_LANGCHAIN_LITE_MODEL"] = model_id
-        prefix = f"baseline-{label}-chat-lc-lite-{DEMO_PRESENTER}"
+        prefix = f"baseline-{label}-chat-lc-lite-{settings.demo_presenter}"
         print(f"\n  → {model_id}: experiment '{prefix}-...'")
         scores = run_evaluation(experiment_prefix=prefix)
         print(f"  ✓ {label} complete: overall={scores.get('__overall__', 0.0):.2f}")
@@ -396,8 +395,8 @@ def main():
         seed_baseline_experiments()
 
     print("\nSetup complete.")
-    print(f"  Dataset:      {DATASET_NAME}")
-    print(f"  Project:      {PROJECT_NAME}")
+    print(f"  Dataset:      {settings.dataset_name}")
+    print(f"  Project:      {settings.langsmith_project}")
     print("  Online evals: scoring all new traces automatically")
 
 

@@ -56,10 +56,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# Backward-compatible module-level constants (existing call sites import these).
-DEMO_PRESENTER = settings.demo_presenter
-PROJECT_NAME = settings.langsmith_project
-DATASET_NAME = settings.dataset_name
-TOOL_ADHERENCE_DATASET_NAME = settings.tool_adherence_dataset_name
-CONTEXT_HUB_REPO = settings.context_hub_repo
+"""Import this and read attributes directly, e.g. ``settings.dataset_name``."""

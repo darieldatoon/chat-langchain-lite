@@ -30,14 +30,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from evals.dataset import (  # noqa: E402 — env must load first
-    DATASET_NAME,
-    DEMO_PRESENTER,
-    TOOL_ADHERENCE_DATASET_NAME,
-)
-
-PROJECT_NAME = os.getenv("LANGSMITH_PROJECT", "chat-lc-lite")
-
+from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
 
 # ── 1. Reset dataset ───────────────────────────────────────────────────────────
 
@@ -56,8 +49,8 @@ def reset_dataset() -> None:
     ls_client = Client()
 
     for name, examples in (
-        (DATASET_NAME, EXAMPLES),
-        (TOOL_ADHERENCE_DATASET_NAME, TOOL_ADHERENCE_EXAMPLES),
+        (settings.dataset_name, EXAMPLES),
+        (settings.tool_adherence_dataset_name, TOOL_ADHERENCE_EXAMPLES),
     ):
         datasets = list(ls_client.list_datasets(dataset_name=name))
         if not datasets:
@@ -93,7 +86,7 @@ def delete_ci_experiments() -> None:
     ls_client = Client()
     total_deleted = 0
     total_kept = 0
-    for name in (DATASET_NAME, TOOL_ADHERENCE_DATASET_NAME):
+    for name in (settings.dataset_name, settings.tool_adherence_dataset_name):
         datasets = list(ls_client.list_datasets(dataset_name=name))
         if not datasets:
             continue
@@ -145,9 +138,9 @@ def delete_engine_evaluators(api_key: str) -> None:
     # Get our project ID so we only touch rules scoped to our project
     ls_client = Client()
     projects = list(ls_client.list_projects())
-    project = next((p for p in projects if p.name == PROJECT_NAME), None)
+    project = next((p for p in projects if p.name == settings.langsmith_project), None)
     if not project:
-        print(f"  Warning: project '{PROJECT_NAME}' not found. Skipping.")
+        print(f"  Warning: project '{settings.langsmith_project}' not found. Skipping.")
         return
     project_id = str(project.id)
 
@@ -194,13 +187,13 @@ def delete_project() -> None:
     ls_client = Client()
 
     # 1. Project
-    print(f"\n[*] Deleting LangSmith project '{PROJECT_NAME}'...")
+    print(f"\n[*] Deleting LangSmith project '{settings.langsmith_project}'...")
     try:
-        ls_client.delete_project(project_name=PROJECT_NAME)
-        print(f"  Deleted project '{PROJECT_NAME}'.")
+        ls_client.delete_project(project_name=settings.langsmith_project)
+        print(f"  Deleted project '{settings.langsmith_project}'.")
     except Exception as e:
         if any(s in str(e).lower() for s in ("not found", "404")):
-            print(f"  Project '{PROJECT_NAME}' not found.")
+            print(f"  Project '{settings.langsmith_project}' not found.")
         else:
             print(f"  Project delete failed: {e}")
 
@@ -209,19 +202,19 @@ def delete_project() -> None:
     #   - the two current demo datasets (exact names), plus
     #   - any stale chat-lc-lite-*-<presenter> datasets from prior renames
     #     (the `-<presenter>` suffix is what setup.py appends), plus
-    #   - the auto-generated `Evaluator: <PROJECT_NAME>:...` pseudo-datasets
+    #   - the auto-generated `Evaluator: <project>:...` pseudo-datasets
     #     LangSmith creates when this project's online evaluators run (they
     #     linger after the evaluator itself is deleted).
     # The bare `chat-lc-lite-` prefix is deliberately NOT used: it ignores the
     # presenter suffix and would delete other demoers' datasets.
     print("\n[*] Deleting demo datasets...")
-    known = {DATASET_NAME, TOOL_ADHERENCE_DATASET_NAME}
-    presenter_suffix = f"-{DEMO_PRESENTER}"
+    known = {settings.dataset_name, settings.tool_adherence_dataset_name}
+    presenter_suffix = f"-{settings.demo_presenter}"
     for d in ls_client.list_datasets():
         mine = (
             d.name in known
             or (d.name.startswith("chat-lc-lite-") and d.name.endswith(presenter_suffix))
-            or d.name.startswith(f"Evaluator: {PROJECT_NAME}")
+            or d.name.startswith(f"Evaluator: {settings.langsmith_project}")
         )
         if not mine:
             continue
@@ -392,8 +385,8 @@ def main():
         sys.exit(1)
 
     print("Cleaning up demo...")
-    print(f"  Dataset:  {DATASET_NAME}")
-    print(f"  Project:  {PROJECT_NAME}")
+    print(f"  Dataset:  {settings.dataset_name}")
+    print(f"  Project:  {settings.langsmith_project}")
     if args.full:
         print("  Mode:     FULL (project will be deleted)")
 

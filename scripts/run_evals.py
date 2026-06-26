@@ -19,9 +19,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from evals.dataset import DATASET_NAME, DEMO_PRESENTER  # noqa: E402 — env must load first
-
-PROJECT_NAME = os.getenv("LANGSMITH_PROJECT", "chat-lc-lite")
+from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
 
 
 def run_agent_on_example(inputs: dict) -> dict:
@@ -49,11 +47,11 @@ def run_evaluation(experiment_prefix: str) -> dict:
 
     from evals.evaluators import assertion_evaluator
 
-    print(f"\nRunning evaluation on dataset '{DATASET_NAME}'...")
+    print(f"\nRunning evaluation on dataset '{settings.dataset_name}'...")
 
     results = evaluate(
         run_agent_on_example,
-        data=DATASET_NAME,
+        data=settings.dataset_name,
         evaluators=[assertion_evaluator],
         experiment_prefix=experiment_prefix,
         metadata={"demo": "true", "demo_type": "chat-lc-lite"},
@@ -123,12 +121,14 @@ def setup_online_eval():
     ls_client = Client()
 
     projects = list(ls_client.list_projects())
-    project = next((p for p in projects if p.name == PROJECT_NAME), None)
+    project = next((p for p in projects if p.name == settings.langsmith_project), None)
     if not project:
-        print(f"Warning: Project '{PROJECT_NAME}' not found. Generate some traces first.")
+        print(
+            f"Warning: Project '{settings.langsmith_project}' not found. Generate some traces first."
+        )
         return
 
-    print(f"\nSetting up online evaluators on project '{PROJECT_NAME}'...")
+    print(f"\nSetting up online evaluators on project '{settings.langsmith_project}'...")
 
     model_json = ChatAnthropic(model_name="claude-haiku-4-5-20251001").to_json()
 
@@ -191,14 +191,14 @@ def main():
         "--threshold", type=float, default=None, help="Fail (exit 1) if avg score below this value"
     )
     parser.add_argument(
-        "--experiment-prefix", type=str, default=f"engine-chat-lc-lite-{DEMO_PRESENTER}"
+        "--experiment-prefix", type=str, default=f"engine-chat-lc-lite-{settings.demo_presenter}"
     )
     args = parser.parse_args()
 
     if not args.skip_dataset:
         from evals.dataset import create_or_update_dataset
 
-        print(f"Preparing dataset '{DATASET_NAME}'...")
+        print(f"Preparing dataset '{settings.dataset_name}'...")
         create_or_update_dataset()
 
     scores = run_evaluation(experiment_prefix=args.experiment_prefix)
@@ -206,7 +206,7 @@ def main():
     if args.setup_online_eval:
         setup_online_eval()
 
-    print(f"\nView results: https://smith.langchain.com — project '{PROJECT_NAME}'")
+    print(f"\nView results: https://smith.langchain.com — project '{settings.langsmith_project}'")
 
     if args.threshold is not None:
         passed = check_threshold(scores, args.threshold)

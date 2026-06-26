@@ -26,13 +26,8 @@ evaluated in CI.
 from langsmith import Client
 from langsmith.schemas import DataType
 
-# Demo-scoping config lives in the runtime package (single source of truth);
-# re-exported here so existing `from evals.dataset import ...` call sites keep working.
-from chat_langchain_lite.config import (  # noqa: F401
-    DATASET_NAME,
-    DEMO_PRESENTER,
-    TOOL_ADHERENCE_DATASET_NAME,
-)
+# Demo-scoping config (dataset names, presenter) lives in the runtime package.
+from chat_langchain_lite.config import settings
 
 EXAMPLES = [
     # All seed assertions are LOW-BAR — the buggy agent passes them. The
@@ -159,7 +154,7 @@ def _create_or_update(
 def create_or_update_dataset() -> str:
     """Create or update the primary CI dataset (assertions format)."""
     return _create_or_update(
-        DATASET_NAME,
+        settings.dataset_name,
         EXAMPLES,
         (
             "Chat LangChain Lite evaluation dataset. Examples use the "
@@ -172,7 +167,7 @@ def create_or_update_dataset() -> str:
 def create_or_update_tool_adherence_dataset() -> str:
     """Create or update the secondary 'tool adherence' showcase dataset (legacy format)."""
     return _create_or_update(
-        TOOL_ADHERENCE_DATASET_NAME,
+        settings.tool_adherence_dataset_name,
         TOOL_ADHERENCE_EXAMPLES,
         (
             "Chat LangChain Lite — tool adherence showcase dataset. "
