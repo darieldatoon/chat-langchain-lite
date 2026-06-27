@@ -1,262 +1,173 @@
-# chat-lc-lite
+# Chat LangChain Lite
 
-A LangChain ecosystem chatbot ("Chat LangChain Lite") with intentional bugs, built to demonstrate LangSmith Engine's ability to identify issues in agent traces and propose fixes via PR. The agent answers questions about LangChain, LangGraph, LangSmith, and Deep Agents using three tools: `lookup_concept`, `get_setup_guide`, and `get_security_advice`.
+A LangChain-ecosystem chat assistant, built as an **end-to-end LangSmith demo** of
+the **Agent Development Life Cycle**: **Build → Test → Deploy → Monitor**. The agent
+ships with intentional defects so each ADLC stage has something real to catch, and
+the story climaxes on **Engine** — it diagnoses the root causes across prompt *and*
+code, opens a PR, and a Preview Build proves the fix before merge.
 
-## What this demos
+> **The run-of-show lives in [`DEMO.md`](./DEMO.md).** This README is the engineering
+> reference: how it's built, how to provision it, and how to run it.
 
-1. **Engine identifies bugs** — the agent has bugs in the prompt and code that cause bad responses
-2. **Engine proposes a PR fix** — targets the root cause code and opens a PR on your fork
-3. **Engine proposes offline examples and online evals to add** — expand dataset coverage and monitoring with one click
-4. **Offline evals in CI/CD** — the PR can't merge until eval scores pass a threshold
-5. **Before/after scores in LangSmith** — both "before" and "after" experiments created automatically by CI when Engine opens a PR
+## The agent
 
-## The bugs
+**Chat LangChain Lite** answers questions about LangChain, LangGraph, LangSmith, and
+Deep Agents. It's a `create_agent` ReAct loop with three tools — concept lookup, setup
+guides, and security advice — a system prompt served from **Context Hub**, and a
+FastHTML chat UI mounted on the same deployment.
 
-Bugs are spread across three files so Engine has to reason about code, not just prompts:
-
-| Bug | File / Location | Effect | Caught by |
-|-----|------|--------|-----------|
-| "Never use tools, never decline" instruction | LangSmith Context Hub (`chat-lc-lite-agent-robert` / AGENTS.md) — fix in the Context Hub UI, not the repo | Answers any topic; answers from memory instead of calling tools | `tool_usage`, `scope_adherence` |
-| Casual / emoji voice | LangSmith Context Hub (`chat-lc-lite-agent-robert` / AGENTS.md) — fix in the Context Hub UI, not the repo | Every response starts with "Hey there! 👋", uses emojis throughout, ends with "Happy building! 🚀" | `professional_tone` |
-| Wrong docs URL in SAFE_PATTERNS | `agent/tools.py` | Agent recommends stale `python.langchain.com` / `js.langchain.com` links instead of `docs.langchain.com` | `security_advice` |
-| Wrong LangGraph min Python version | `agent/tools.py` | Returns "3.7+" instead of the correct "3.10+" | `factual_accuracy` |
-| `max_tokens=300` | `agent/agent.py` | Truncates responses on complex technical questions | `response_completeness` |
-
-## Setup
-
-**1. Fork and clone this repo**
-
-**2. Create a virtual environment**
-```bash
-uv sync
-source .venv/bin/activate
+```
+src/chat_langchain_lite/
+├── config.py        # single source of truth for every resource name (see below)
+├── agent.py         # create_agent ReAct loop; build_agent() is the graph factory
+├── tools.py         # lookup_concept, get_setup_guide, get_security_advice
+├── prompts.py       # LLM-as-judge prompt: pull from Prompt Hub, local fallback
+├── context.py       # pulls the agent's AGENTS.md system prompt from Context Hub
+├── context_hub.py   # setup-time seed/push helper for Context Hub
+└── web/app.py       # FastHTML chat UI, mounted on the deployment (langgraph.json http.app)
 ```
 
-Or with pip:
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
+`langgraph.json` defines both halves of the deployment from one artifact:
 
-**3. Configure environment**
+- `graphs.agent` → `src/chat_langchain_lite/agent.py:build_agent` — the graph factory.
+- `http.app` → `src/chat_langchain_lite/web/app.py:app` — the FastHTML UI, mounted as a
+  custom route so it's served from the same origin. It doesn't import the graph; it
+  streams over the LangGraph SDK on loopback (`:2024` locally, `:8000` in the container).
+
+## The intentional defects
+
+Each defect surfaces at a *different* ADLC stage via a *different* LangSmith tool —
+that's what makes "building agents is hard" land. Engine then fixes the root causes
+across both prompt (Context Hub) and code in one PR.
+
+| # | Defect | Lives in | Surfaces at | Caught by |
+|---|--------|----------|-------------|-----------|
+| 4 | LangGraph "min Python 3.7+" (should be 3.10+) | `tools.py` `CONCEPTS_DB` (code) | **Test** | Offline eval `factual_accuracy` |
+| 3 | Recommends stale `python.langchain.com` docs | `tools.py` `SAFE_PATTERNS` (code) | **Test** | Offline eval `security_advice` |
+| 1 | "Never use tools, never decline" → answers off-topic | `AGENTS.md` (Context Hub) | **Monitor** | Online evals `scope_adherence`/`tool_usage` + Insights |
+| 2 | Emoji/casual brand voice | `AGENTS.md` (Context Hub) | **Monitor** | Online eval `professional_tone` + Monitoring trend |
+| 5 | Truncates long answers (`max_tokens=300`) | `agent.py` (code) | **Monitor** | Human 👎 → Automation → Annotation queue → Dataset |
+
+Tests catch the deterministic bugs (3, 4) *before* deploy; production observability
+catches the behavioral ones (1, 2); and the self-improving loop (5) turns a user
+thumbs-down into a new eval case.
+
+## Configuration
+
+Every resource name derives from one slug (`APP_SLUG = "chat-langchain-lite"`) plus the
+presenter, so a whole demo is consistently named and multiple presenters in one
+workspace don't collide. `src/chat_langchain_lite/config.py` is the single source of
+truth — change it there and every dataset / project / prompt / experiment / tag follows.
+
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env`:
+
 ```
 ANTHROPIC_API_KEY=your-key
 LANGSMITH_API_KEY=your-demo-workspace-api-key
-LANGSMITH_PROJECT=chat-lc-lite
 LANGSMITH_WORKSPACE_ID=your-demo-workspace-id
 LANGSMITH_TRACING=true
+DEMO_PRESENTER=yourname          # the one knob: scopes all resource names
+# LANGSMITH_PROJECT=...          # optional; defaults to chat-langchain-lite-<presenter>
+# APPLICATION=...                # optional; defaults to the project name
 ```
 
-> If multiple presenters share a LangSmith workspace, use a unique `LANGSMITH_PROJECT` per person (e.g. `chat-lc-lite-morgan`) to avoid mixing traces and online evaluators. The project is created automatically on first use.
+`DEMO_PRESENTER` is the only required name knob. With `DEMO_PRESENTER=morgan` you get
+`chat-langchain-lite-morgan` (project), `chat-langchain-lite-scope-morgan` (dataset),
+`chat-langchain-lite-agent-morgan` (Context Hub), and so on — see `config.py` for the
+full set of derived names.
 
-**4. Run one-shot setup**
+Every resource the provisioner creates is tagged with the LangSmith **`Application`**
+resource tag (value = `APPLICATION`, defaulting to the project name), so you can filter
+Projects, Datasets, Prompts, Annotation Queues, Experiments, and Deployments to just
+this application in a shared workspace.
+
+## Provisioning — one command
+
 ```bash
-python -m scripts.setup
+make install        # once per clone: uv sync + install git hooks
+make demo-setup     # idempotent: provisions all LangSmith demo state
+make dev            # run the graph + chat UI at http://localhost:2024
 ```
 
-This does three things in one command:
-1. **Creates the LangSmith project** by sending one trace (required before online evaluators can be registered)
-2. **Creates the dataset** `chat-lc-lite-scope-<your-name>` with 3 curated test cases, then tags that version as `baseline` in LangSmith
-3. **Creates 5 online evaluators** in the LangSmith Evaluators UI at 100% sampling rate — every future trace is automatically scored for `security_advice`, `scope_adherence`, `tool_usage`, `response_completeness`, and `factual_accuracy`. Their run rule IDs are saved to `.demo_state.json` so cleanup can tell them apart from evaluators Engine adds.
+`make demo-setup` runs `scripts/provision.py`, the single front door. It's idempotent —
+re-running is safe. See the full plan with:
 
-Only needs to be run once. Between demos, run `python -m scripts.cleanup` instead.
-
-**5. Generate traces**
 ```bash
-python -m scripts.generate_traces
+uv run python -m scripts.provision --list
 ```
 
-Runs 13 single-turn queries and 3 multi-turn threaded conversations through the buggy agent to populate LangSmith with trace and thread variety beyond the dataset examples.
+The plan, in order:
 
-**6. Add GitHub secrets** (for CI/CD)
+| Stage | Step | Script |
+|-------|------|--------|
+| Build | Seed Prompt Hub with the LLM-as-judge prompt | `scripts.push_prompts` |
+| Build | Seed Context Hub, project, dataset, online evaluators, baseline experiments | `scripts.setup` |
+| Test | Pairwise experiment (Haiku vs Sonnet, judged head-to-head) | `scripts.run_pairwise` |
+| Monitor | Generate demo traffic (single-turn traces + threads) | `scripts.generate_traces` |
+| Monitor | Review annotation queue + 👎→queue automation + Correctness evaluator | `scripts.build_monitoring` |
 
-In your fork: Settings → Secrets → Actions → add `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, and `LANGSMITH_WORKSPACE_ID`.
-
-> **Important:** When pasting secrets, make sure there are no trailing newlines or spaces.
-
-**7. Enable GitHub Actions**
-
-In your fork: Actions → (if prompted) enable workflows. GitHub disables Actions on forks by default — this step is required for offline evals to run on PRs.
-
-**8. Connect Engine**
-
-In LangSmith Engine, connect your LangSmith project (`LANGSMITH_PROJECT`) and your GitHub fork so Engine can read traces and open PRs against your repo.
-
-## Architecture
-
-`langgraph.json` defines both halves of the app:
-
-- `graphs.agent` → `agent/agent.py:build_agent` — the factory the platform calls to build the agent.
-- `http.app` → `frontend/app.py:app` — the FastHTML chat UI, mounted on the LangGraph
-  server as a custom route so it's served from the same origin (root `/`).
-
-The frontend doesn't import the graph; it streams responses from it over the LangGraph
-SDK on **loopback** — `http://localhost:2024` under `langgraph dev`, `http://localhost:8000`
-in the deployed container. The URL comes from `LANGGRAPH_API_URL` (see below).
+Monitoring dashboards and Insights are UI walkthroughs (no create API) — the built-in
+project **Monitor** tab renders from the data above. See `DEMO.md`.
 
 ## Deploying to LangSmith Deployments
 
-1. Verify it runs locally first: `langgraph dev` (deployment fails if this does).
+1. Verify it runs locally first: `make dev` (deployment fails if `langgraph dev` does).
 2. Deploy via the LangSmith UI (**Deployments → New**) pointing at this repo, or build an
    image with `langgraph build`.
 3. Set deployment environment variables:
-   - `LANGGRAPH_API_URL=http://localhost:8000` — the container serves the API on port 8000,
-     so the mounted frontend must reach the graph there (the default `:2024` is local-only).
-   - `SESSION_SECRET=<strong random value>` — signs the frontend's session cookie.
-   - Plus `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, etc.
+   - `LANGGRAPH_API_URL=http://localhost:8000` — the container serves the graph API on
+     port 8000, so the mounted UI must reach it there (the default `:2024` is local-only).
+   - `SESSION_SECRET=<strong random value>` — signs the chat UI's session cookie.
+   - Plus `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`, `DEMO_PRESENTER`, etc.
 
 The chat UI is then served at the deployment's root URL.
 
-## Demo flow
-
-### Before the demo
-
-```bash
-# One-shot setup: creates dataset, sets up online evaluators
-python -m scripts.setup
-
-# Generate more traces including threads
-python -m scripts.generate_traces
-
-# Start the LangGraph server + chat UI (FastHTML frontend is mounted on it)
-langgraph dev
-# then open the chat UI at http://localhost:2024/
-```
-
-### During the demo
-
-1. Show Chat LangChain Lite UI — ask questions (concept lookups, setup guides, security advice, etc.)
-2. Show traces in LangSmith with online eval scores (`security_advice`, `scope_adherence`, etc.)
-3. Engine analyzes traces and identifies root causes across prompt and code
-4. Add Engine-suggested offline examples — show ability to edit in annotation queue
-5. Engine opens a PR on your fork
-6. GitHub Actions runs evals on main (before experiment) and the PR branch (after experiment) — after scores pass ✅
-7. Merge the PR
-8. Add Engine-suggested online eval
-9. Show the experiments in LangSmith — before/after score comparison
-
-### After the demo
-
-```bash
-python -m scripts.cleanup
-```
-
-## Scripts
-
-| Script | What it does |
-|--------|-------------|
-| `python -m scripts.setup` | One-shot setup: creates dataset and creates 5 online evaluators |
-| `python -m scripts.generate_traces` | Runs 13 single-turn queries + 3 multi-turn threads through the buggy agent |
-| `python -m scripts.run_evals` | Runs offline evals against the dataset and prints scores |
-| `python -m scripts.run_evals --skip-dataset` | Re-runs evals against existing dataset (used in CI) |
-| `python -m scripts.run_evals --threshold 0.7` | Exits with code 1 if scores < 0.7 (used in CI) |
-| `python -m scripts.cleanup` | Resets demo to clean state — see Cleanup section |
-| `python -m scripts.cleanup --full` | Same, plus deletes the LangSmith project (so Engine sees a fresh project on the next demo). Re-run `scripts.setup` after. |
-| `langgraph dev` | Start the LangGraph server with the FastHTML chat UI mounted at `http://localhost:2024/` |
-
-## Evaluators
-
-Two LLM-as-judge evaluators run in CI (offline). Claude Haiku scores each 0 or 1:
-
-- **`tool_selection`** — did the agent ground its response in tool output rather than answering from memory? Goes 0→1 when the bad system prompt is fixed.
-- **`scope_adherence`** — did the agent stay LangChain-ecosystem-only and decline off-topic questions?
-
-## Online Evaluators
-
-Online evaluators run automatically on every trace as it arrives in LangSmith. This gives Engine a continuous signal on live traffic, not just offline evals on a fixed dataset.
-
-Five online evaluators are registered by `python -m scripts.setup`: `security_advice`, `scope_adherence`, `tool_usage`, `response_completeness`, and `factual_accuracy`.
-
 ## CI/CD
 
-`.github/workflows/evals.yml` runs automatically on every PR to `main`.
-
-Add these secrets to your repo (Settings → Secrets → Actions):
-- `ANTHROPIC_API_KEY`
-- `LANGSMITH_API_KEY`
-- `LANGSMITH_PROJECT`
-- `LANGSMITH_WORKSPACE_ID`
-
-`LANGSMITH_PROJECT` should match what you used locally — that's the project the agent traces against.
+`.github/workflows/evals.yml` runs offline evals on PRs to `main`. It is **label-gated**:
+add the `run-evals` label to a PR to fire it (Engine opens both quick code-fix PRs that
+don't need gating and regression-prevention PRs that do — the label picks the latter).
 
 ```
-PR opened → GitHub Actions → run_evals --skip-dataset --threshold 0.7
-                                          ↓
-                               scores < 0.7 → ❌ blocks merge
-                               scores ≥ 0.7 → ✅ mergeable
+PR + `run-evals` label → run_evals --skip-dataset --threshold 0.7
+                                    ↓
+                         scores < 0.7 → ❌ blocks merge
+                         scores ≥ 0.7 → ✅ mergeable
 ```
 
-CI runs evals on both the base branch (creating the "before" experiment) and the PR branch (creating the "after" experiment) in LangSmith automatically. Because `--skip-dataset` fetches the existing dataset from LangSmith by name, any examples Engine adds to the dataset are included in the eval run automatically.
+CI runs a single **"after"** experiment on the PR branch. The pre-seeded
+`baseline-haiku-…` / `baseline-sonnet-…` experiments (from `scripts.setup`) give the
+"before" reference in the dataset's experiment view — a separate before-run is
+unnecessary because the most common fixes live in Context Hub (empty PR diff). Because
+`--skip-dataset` fetches the dataset by name, any examples Engine adds are included.
 
-## Repo structure
+Add these to your fork (Settings → Secrets and variables → Actions):
+- Secrets: `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`, `LANGSMITH_WORKSPACE_ID`
+- Variables: `DEMO_PRESENTER` (must match what you used locally)
 
-```
-context/
-└── __init__.py       # get_prompt() — pulls the agent's system prompt from
-                      # LangSmith Context Hub at runtime. The prompt content
-                      # lives in the hub, not this repo (Bugs 1 & 5 are fixed
-                      # in the Context Hub UI, not via code PR).
+## Make targets
 
-agent/
-├── tools.py          # concept lookup, setup guides, security advice (Bugs 2 & 3)
-└── agent.py          # create_agent + FilesystemMiddleware (Bug 4 — max_tokens);
-                      # build_agent() is the factory langgraph.json points graphs.agent at
+| Target | What it does |
+|--------|-------------|
+| `make install` | `uv sync` + install git hooks |
+| `make demo-setup` | Provision all LangSmith demo state (idempotent) |
+| `make dev` | Start the graph + mounted chat UI at `http://localhost:2024/` |
+| `make evals` | Run offline evals against the dataset and print scores |
+| `make traces` | Populate LangSmith with extra single-turn + threaded traffic |
+| `make demo-reset` | Reset to a clean state (re-seeds the buggy Context Hub, keeps the project) |
+| `make demo-reset-full` | Same, plus delete the LangSmith project + Context Hub repos |
+| `make lint` / `make format` / `make typecheck` / `make check` | Code quality (ruff / ty) |
 
-frontend/
-└── app.py           # FastHTML chat UI, mounted on the LangGraph server as a
-                     # custom endpoint (langgraph.json `http.app`); streams the
-                     # agent over the LangGraph SDK via SSE
-
-utils/
-└── context_hub.py    # setup-time push helper. Holds the *initial seed* for
-                      # Context Hub only; not the runtime source of truth.
-
-evals/
-├── dataset.py        # creates per-user LangSmith dataset (3 curated examples)
-└── evaluators.py     # 2 LLM-as-judge offline evaluators (used in CI)
-
-scripts/
-├── setup.py          # one-shot setup: dataset + online evaluators + Context Hub
-├── generate_traces.py    # populate LangSmith with extra traces and threads
-├── run_evals.py          # offline evals + CI threshold check
-└── cleanup.py            # resets demo to clean state after presentation
-
-.github/workflows/
-├── evals.yml                 # CI/CD: label-gated offline evals on PRs to main
-└── auto-label-engine-prs.yml # auto-tags Engine PRs with 'run-evals'
-
-langgraph.json        # LangGraph Deployments config: graph + mounted FastHTML app
-```
-
-## Cleanup
-
-Run after the demo to reset everything for the next presenter:
+## Reset
 
 ```bash
-python -m scripts.cleanup
+make demo-reset        # reset to clean state (re-seeds buggy Context Hub, keeps project)
+make demo-reset-full   # also delete the LangSmith project + Context Hub repos
 ```
 
-This does five things:
-1. **Resets dataset to original 3 examples** — deletes all examples and re-uploads the canonical 3, removing anything Engine added
-2. **Deletes CI/Engine experiments** — keeps the `baseline-*` seed experiments from `setup.py` (the Haiku-vs-Sonnet "before" reference); CI/CD regenerates before/after experiments on every PR
-3. **Removes Engine-added online evaluators** — uses saved run rule IDs from `.demo_state.json` to delete only evaluators Engine added, leaving the 5 from `setup.py` in place
-4. **Re-seeds Context Hub to the buggy baseline** — re-pushes the seed `AGENTS.md` and demo skills, restoring the buggy prompt if it was fixed in the Context Hub UI during the demo (a code/dataset reset can't touch Context Hub)
-5. **Resets main to the `baseline` tag** — force-resets to remove Engine's merged PR, restoring the buggy agent state
-
-After cleanup, the demo is ready to run again — no need to re-run `setup.py`.
-
-For a **full** reset that also removes the LangSmith project (clearing all traces and Engine's per-project issue state):
-
-```bash
-python -m scripts.cleanup --full
-python -m scripts.setup         # recreates project, dataset, evaluators
-python -m scripts.generate_traces
-```
-
-Use this when you want Engine to see a completely fresh project for the next demo — for example when a new presenter takes over and you don't want them to inherit any pre-flagged issues.
+Use `demo-reset-full` when you want Engine to see a completely fresh project for the next
+presenter, with no pre-flagged issues. Re-run `make demo-setup` afterward.
