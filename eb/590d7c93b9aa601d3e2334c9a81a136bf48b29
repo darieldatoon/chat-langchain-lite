@@ -1,0 +1,22 @@
+scripts/build_monitoring.py
+  s_7d02ceb5dd13ce::t_8efb32f131e45d 33
+  s_7d02ceb5dd13ce::t_b1daf430c8a0e3 210-217
+  s_7d02ceb5dd13ce::t_4d6e93a7b5d920 47-48,51-75
+  s_7d02ceb5dd13ce::t_c986527e768c77 76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "eb590d7c93b9aa601d3e2334c9a81a136bf48b29",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
