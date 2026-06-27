@@ -139,10 +139,27 @@ annotation-queue flow below.)*
 the graph API *and* the mounted FastHTML UI from the same origin. *Say:* "the UI
 streams from the graph over the SDK on loopback — no separate frontend deploy."
 
-**Preview Builds (non-expiring)** 🔜 *Phase 3* — *Show:* a per-PR deployment
-build that doesn't expire. *Say:* "this is the climax glue — when Engine opens a
-PR, its Preview Build is a live URL we can poke before merge." *(Setup mechanism
-to be confirmed against the LangSmith console.)*
+**Preview Builds (non-expiring)** ✅ *(one-time console setup; see below)* —
+*Show:* a standing **Production-type** deployment, linked to a dedicated
+`preview` branch with **auto-update on push**, that serves the climax's live URL.
+*Say:* "this is the climax glue — when Engine opens a PR, we point our preview at
+its branch and get a live URL to poke before merge, and because it's a
+**Production** deployment it never gets preempted mid-demo."
+
+Why Production: a deployment's type is **immutable after creation**, and
+`Development` deployments run on **preemptible compute that can be terminated
+without notice** — exactly what would take a preview offline mid-demo.
+`Production` runs on durable, highly-available infra, so the URL stays live.
+
+*One-time setup (LangSmith console — an org owner does the GitHub OAuth once):*
+1. **Deployments → + New Deployment → Import from GitHub** → authorize the
+   `hosted-langserve` app → pick `darieldatoon/chat-langchain-lite`.
+2. **Deployment type: `Production`** (durable — not the `Development` default).
+3. **Git branch: `preview`** (a dedicated throwaway branch we re-point each demo)
+   and check **Automatically update deployment on push to branch**.
+4. Env vars: `LANGGRAPH_API_URL=http://localhost:8000`, `SESSION_SECRET=<random>`,
+   `ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`, `DEMO_PRESENTER` (see README → Deploy).
+5. The deployment's root URL is the **Preview Build URL** used in the climax below.
 
 ### 4 · Monitor
 
@@ -179,15 +196,19 @@ Seeded by `scripts/build_monitoring.py`. *Say:* "this is the self-improving loop
 made concrete — a thumbs-down becomes a permanent test, and the same labels tune the
 evaluators (Align)."
 
-**Engine — the climax** ✅ *(Preview wiring 🔜 Phase 3)* — *Show:*
+**Engine — the climax** ✅ — *Show:*
 1. Engine reads the failing online evals + traces and diagnoses the root causes,
    spanning **prompt (Context Hub)** *and* **code (`tools.py`, `agent.py`)**.
 2. It opens a **PR**.
-3. The PR's **Preview Build** gives a live URL — re-ask the broken question, show
-   it answers correctly now.
+3. Point the preview at the fix: `make preview-sync REF=<engine-pr-branch>`
+   (force-pushes that branch onto `preview`). The standing Production deployment
+   **auto-updates on push** and revisions to the fix in seconds — its root URL is
+   the **live Preview Build**. Re-ask the broken question there; it answers
+   correctly now (and because it's Production, the URL never goes dark mid-demo).
 4. CI runs the offline evals (`.github/workflows/evals.yml`, label-gated); they
    pass the threshold.
-5. Merge → redeploy → the monitoring charts go green.
+5. Merge → production redeploys (auto-update on `main` or a `make` deploy) → the
+   monitoring charts go green.
 
 ---
 

@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev demo-setup demo-reset demo-reset-full traces evals lint format typecheck check
+.PHONY: help install dev preview-sync demo-setup demo-reset demo-reset-full traces evals lint format typecheck check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -11,6 +11,16 @@ install: ## Sync deps and install git hooks (run once per clone)
 
 dev: ## Run the LangGraph server + mounted chat UI (http://localhost:2024)
 	uv run langgraph dev
+
+# Engine-climax helper: point the standing Production preview deployment (linked to
+# the `preview` branch with auto-update-on-push) at an Engine PR branch. `preview`
+# is a disposable branch we overwrite each demo, so the push is a force update.
+preview-sync: ## Force-push REF (an Engine PR branch on origin) onto `preview` to redeploy the preview build
+ifndef REF
+	$(error REF is required, e.g. `make preview-sync REF=engine/fix-bugs`)
+endif
+	git fetch origin
+	git push origin "+origin/$(REF):preview"
 
 demo-setup: ## Provision all LangSmith demo state (idempotent)
 	uv run python -m scripts.provision
