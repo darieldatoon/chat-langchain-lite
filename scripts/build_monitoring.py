@@ -30,6 +30,7 @@ from langsmith import Client  # noqa: E402 — env must load first
 from langsmith.utils import LangSmithRateLimitError  # noqa: E402
 
 from chat_langchain_lite.config import USER_SCORE_KEY, settings  # noqa: E402
+from scripts.ls_admin import set_dataset_schema  # noqa: E402
 from scripts.resource_tags import tag_resource  # noqa: E402
 
 _API = "https://api.smith.langchain.com/api/v1"
@@ -43,8 +44,35 @@ _CORRECTNESS_HUB_REF = "eval_correctness_636x107f:latest"
 _CORRECTNESS_VARIABLE_MAPPING = {
     "inputs": "input.messages[0].content",
     "outputs": "output.messages[-1].content",
-    "reference_outputs": "referenceOutput.messages[-1].content",
+    # Reference is the example's single (chat-model schema) `message`, not messages[-1].
+    "reference_outputs": "referenceOutput.message.content",
 }
+
+# Chat-model prebuilt schema for the corrections dataset (captured from the UI):
+# inputs are messages + tools, output is a single message; transformations
+# normalize to OpenAI format and drop extra fields (e.g. the agent's `files`).
+_CHAT_MODEL_INPUTS_SCHEMA = {
+    "type": "object",
+    "title": "dataset_input_schema",
+    "required": ["messages"],
+    "properties": {
+        "tools": {"type": "array", "items": {"$ref": "/public/schemas/v1/tooldef.json"}},
+        "messages": {"type": "array", "items": {"$ref": "/public/schemas/v1/message.json"}},
+    },
+}
+_CHAT_MODEL_OUTPUTS_SCHEMA = {
+    "type": "object",
+    "title": "dataset_output_schema",
+    "required": ["message"],
+    "properties": {"message": {"$ref": "/public/schemas/v1/message.json"}},
+}
+_CHAT_MODEL_TRANSFORMATIONS = [
+    {"path": ["inputs", "messages"], "transformation_type": "convert_to_openai_message"},
+    {"path": ["inputs"], "transformation_type": "remove_extra_fields"},
+    {"path": ["inputs", "tools"], "transformation_type": "convert_to_openai_tool"},
+    {"path": ["outputs"], "transformation_type": "remove_extra_fields"},
+    {"path": ["outputs", "message"], "transformation_type": "convert_to_openai_message"},
+]
 
 
 def _headers() -> dict[str, str]:
@@ -179,6 +207,14 @@ def main() -> None:
 
     dataset_id = _ensure_corrections_dataset(client)
     tag_resource("dataset", dataset_id)
+    # Apply the chat-model prebuilt schema so reviewed examples are clean OpenAI
+    # messages (input messages/tools + a single output message; extras dropped).
+    set_dataset_schema(
+        dataset_id,
+        inputs_schema=_CHAT_MODEL_INPUTS_SCHEMA,
+        outputs_schema=_CHAT_MODEL_OUTPUTS_SCHEMA,
+        transformations=_CHAT_MODEL_TRANSFORMATIONS,
+    )
 
     queue_id = _ensure_queue(
         sess,
