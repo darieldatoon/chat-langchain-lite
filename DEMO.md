@@ -151,13 +151,20 @@ to be confirmed against the LangSmith console.)*
 `response_completeness`, `security_advice`). *Say:* "production traffic gets
 scored automatically — defects **1 & 2** show up here that tests didn't."
 
-**Monitoring dashboards** 🔜 *Phase 2* — *Show:* charts: score trends, latency,
-cost, error rate. *Say:* "the `scope_adherence` line dips — something's off in
-prod."
+**Monitoring dashboards** ✅ *(UI walkthrough — nothing to provision)* — *Show:*
+the project's built-in **Monitor** tab. It already renders, from data we wired:
+online-eval **score trends** (`scope_adherence`, `professional_tone`,
+`factual_accuracy`… dipping where the bugs bite), **latency** and **cost** (the
+Haiku-vs-Sonnet story), **error rate**, and **👍/👎 feedback** over time. *Say:*
+"no custom setup — production traffic + online evals light up the Monitor tab; the
+`scope_adherence` line is where defects 1 & 2 surface." *(There's no create-a-
+dashboard API; for a curated view you'd build a custom dashboard in the UI, but
+the built-in tab carries the demo.)*
 
-**Insights** 🔜 *Phase 2* — *Show:* run the Insights agent on the project; it
-clusters the off-topic failures you didn't anticipate; schedule a recurring
-report. *Say:* "Insights finds the *unknown* unknowns."
+**Insights** ✅ *(UI walkthrough)* — *Show:* run the Insights agent on the project;
+it clusters the off-topic failures you didn't anticipate (the seeded traffic has
+CI/CD, OAuth, transformer, K8s queries for it to find); optionally schedule a
+recurring report. *Say:* "Insights finds the *unknown* unknowns."
 
 **Human feedback** ✅ — *Show:* 👍/👎 + comment in the chat UI (presigned tokens,
 no API key in the browser); the vote shows on the trace and persists in history.

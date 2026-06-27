@@ -58,10 +58,11 @@ PLAN: list[Step] = [
     ),
     Step(
         "Monitor",
-        "Create the review annotation queue + feedback→queue automation",
+        "Create the review annotation queue + feedback→queue automation + Correctness eval",
         "scripts.build_monitoring",
     ),
-    Step("Monitor", "Create monitoring dashboard charts", None),
+    # Monitoring dashboards and Insights are UI walkthroughs (no create API); the
+    # built-in project Monitor tab renders the charts from the data above. See DEMO.md.
 ]
 
 
