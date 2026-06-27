@@ -1,0 +1,19 @@
+README.md
+  s_7d02ceb5dd13ce::t_70b41c454045ab 1,3-7,9-10,12,14-17,19-28,30,32-35,37,39-41,43-60,67,73-75,78-81,83-86,88,91-93,96-97,99-101,103,105-111,113-114,118,122-125,131-133,136-139,142-146,148-150,152,154-163,165,168-169,172-173
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1f3a230c0ce2c29ac4bb95e741d51be0e382df5d",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
