@@ -394,7 +394,33 @@ def setup_online_evaluators(api_key: str) -> list:
     return our_rule_ids
 
 
-# Context Hub plumbing lives in utils/context_hub.py — imported at call site.
+def _repo_id(api_key: str, handle: str) -> str | None:
+    """Resolve a Context Hub repo's id by handle (best-effort, returns None)."""
+    resp = requests.get(
+        f"https://api.smith.langchain.com/api/v1/repos/-/{handle}",
+        headers=_ls_headers(api_key),
+    )
+    if resp.status_code != 200:
+        return None
+    body = resp.json()
+    return (body.get("repo") or body).get("id")
+
+
+def tag_context_hub_repos(api_key: str) -> None:
+    """Tag the Context Hub agent + demo skill repos with the Application tag.
+
+    Context Hub repos live in the /repos/ backend; their tagging resource_type
+    is 'agent' for the agent repo and 'skill' for skill repos (not 'prompt').
+    """
+    from chat_langchain_lite.context_hub import DEMO_SKILL_NAMES
+
+    print("\n[*] Tagging Context Hub repos with the Application tag...")
+    tag_resource("agent", _repo_id(api_key, settings.context_hub_repo))
+    for skill in DEMO_SKILL_NAMES:
+        tag_resource("skill", _repo_id(api_key, skill))
+
+
+# Context Hub plumbing lives in chat_langchain_lite/context_hub.py — imported at call site.
 
 
 # ── Baseline experiments ───────────────────────────────────────────────────────
@@ -451,6 +477,7 @@ def main():
 
     push_agents_md()
     push_demo_skills()
+    tag_context_hub_repos(api_key)
     ensure_project_exists()
     setup_dataset()
     our_rule_ids = setup_online_evaluators(api_key)

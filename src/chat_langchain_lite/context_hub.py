@@ -196,6 +196,11 @@ Markdown: `## What changed` / `## Look at carefully` / `## Risk flags`.
 }
 
 
+# Public handle list so setup tooling can enumerate the skill repos (e.g. to
+# tag them) without reaching into the private dict.
+DEMO_SKILL_NAMES = tuple(_DEMO_SKILLS)
+
+
 def push_demo_skills() -> None:
     """Seed a handful of standalone Skill repos in Context Hub.
 

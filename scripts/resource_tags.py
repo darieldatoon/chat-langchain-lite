@@ -28,9 +28,25 @@ from chat_langchain_lite.config import settings  # noqa: E402 — env must load 
 _API = "https://api.smith.langchain.com/api/v1"
 _TAG_KEY = "Application"
 
-# Resource types the taggings endpoint accepts.
+# Resource types the taggings endpoint accepts (full enum the API validates
+# against — `agent`/`skill` cover Context Hub repos, which live in the same
+# /repos/ backend as prompts but tag under their own types, not `prompt`).
 RESOURCE_TYPES = frozenset(
-    {"project", "dataset", "prompt", "experiment", "queue", "deployment", "dashboard", "evaluator"}
+    {
+        "agent",
+        "dashboard",
+        "dataset",
+        "deployment",
+        "evaluator",
+        "experiment",
+        "fleet_integration",
+        "mcp_server",
+        "project",
+        "prompt",
+        "queue",
+        "sandbox",
+        "skill",
+    }
 )
 
 _value_id_cache: str | None = None
