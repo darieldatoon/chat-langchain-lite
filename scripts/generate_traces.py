@@ -22,6 +22,11 @@ load_dotenv(override=True)
 # in agent.build_agent().
 os.environ["CHAT_LANGCHAIN_LITE_MODEL"] = "claude-haiku-4-5-20251001"
 
+from chat_langchain_lite.config import use_project_default  # noqa: E402 — env must load first
+
+# DEMO_PRESENTER alone scopes the tracing project for this CLI run (see config).
+use_project_default()
+
 QUERIES = [
     # All queries below are chosen so the BASE content (no tone fluff) is
     # >300 tokens — that way Bug 4 (truncation) is clearly a max_tokens

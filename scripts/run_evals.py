@@ -19,8 +19,14 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-from chat_langchain_lite.config import settings  # noqa: E402 — env must load first
+from chat_langchain_lite.config import (  # noqa: E402 — env must load first
+    settings,
+    use_project_default,
+)
 from scripts.resource_tags import tag_resource  # noqa: E402 — env must load first
+
+# DEMO_PRESENTER alone scopes the tracing project for this CLI run (see config).
+use_project_default()
 
 
 def run_agent_on_example(inputs: dict) -> dict:

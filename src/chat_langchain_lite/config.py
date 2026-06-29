@@ -13,6 +13,8 @@ whole demo is consistently named and multiple demoers in one workspace don't
 collide. Set ``DEMO_PRESENTER`` (local ``.env``) or a GitHub repo variable (CI).
 """
 
+import os
+
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -121,3 +123,20 @@ class Settings(BaseSettings):
 
 settings = Settings()
 """Import this and read attributes directly, e.g. ``settings.dataset_name``."""
+
+
+def use_project_default() -> None:
+    """Default ``LANGSMITH_PROJECT`` to ``settings.langsmith_project`` if unset.
+
+    Makes ``DEMO_PRESENTER`` the single knob for where traces land in **local /
+    CLI** runs (scripts, CI): with no ``LANGSMITH_PROJECT`` set, agent traces go
+    to ``chat-langchain-lite-<presenter>`` — the same project the setup scripts
+    provision evaluators on.
+
+    Call this only from CLI entrypoints, never at import time. In a deployment
+    ``LANGSMITH_PROJECT`` is intentionally unset so each deployment (and each
+    per-PR preview build) traces to its own deployment-named project; importing
+    config must not override that. ``setdefault`` also means an explicit
+    ``LANGSMITH_PROJECT`` always wins.
+    """
+    os.environ.setdefault("LANGSMITH_PROJECT", settings.langsmith_project)

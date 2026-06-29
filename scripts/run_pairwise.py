@@ -20,8 +20,11 @@ load_dotenv(override=True)
 from langsmith import evaluate  # noqa: E402 — env must load first
 from langsmith.evaluation import evaluate_comparative  # noqa: E402
 
-from chat_langchain_lite.config import settings  # noqa: E402
+from chat_langchain_lite.config import settings, use_project_default  # noqa: E402
 from scripts.resource_tags import tag_resource  # noqa: E402
+
+# DEMO_PRESENTER alone scopes the tracing project for this CLI run (see config).
+use_project_default()
 
 _PAIRWISE_MODEL = "claude-haiku-4-5-20251001"
 _PAIRWISE_PROMPT = (
