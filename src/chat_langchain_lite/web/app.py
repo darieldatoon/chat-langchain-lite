@@ -661,7 +661,9 @@ async def stream(session, run: str = ""):
         acc = ""
         if not run_id or not thread_id:
             yield sse_message("⚠️ Invalid run.", event="token")
-            yield sse_message("", event="done")
+            yield sse_message(
+                "[DONE]", event="done"
+            )  # non-empty so the event dispatches (see below)
             return
         try:
             client = get_client(url=_api_url())
@@ -687,7 +689,12 @@ async def stream(session, run: str = ""):
             yield sse_message((acc + warning) if acc else warning.strip(), event="token")
         # Feedback + trace bar once the response is complete.
         yield sse_message(fb_bar(run_id), event="actions")
-        yield sse_message("", event="done")
+        # The payload must be non-empty: an SSE frame with no `data:` line is not
+        # dispatched by the browser EventSource, so an empty "done" would never
+        # fire — `sse_close="done"` (assistant_live) wouldn't close the stream, and
+        # the auto-reconnect would re-swap the actions slot, wiping the user's vote
+        # / open comment box. The sentinel is inert (nothing has sse-swap="done").
+        yield sse_message("[DONE]", event="done")
 
     return EventStream(gen())
 
