@@ -1,0 +1,33 @@
+scripts/generate_traces.py
+  s_7d02ceb5dd13ce::t_563ba14f6212f1 25-29
+src/chat_langchain_lite/config.py
+  s_7d02ceb5dd13ce::t_5c36dafdf86f53 126-142
+  s_7d02ceb5dd13ce::t_a05fe890da974c 16-17
+scripts/setup.py
+  s_7d02ceb5dd13ce::t_47924a23868d34 38-41
+  s_7d02ceb5dd13ce::t_8a3f2fc76b828c 45-46
+  s_7d02ceb5dd13ce::t_904b0ae221d1ca 47
+scripts/run_evals.py
+  s_7d02ceb5dd13ce::t_47924a23868d34 22-25
+  s_7d02ceb5dd13ce::t_150c0119158d35 28-29
+  s_7d02ceb5dd13ce::t_07faaaa9eb6cc0 30
+scripts/run_pairwise.py
+  s_7d02ceb5dd13ce::t_0053663f349164 23,26-27
+  s_7d02ceb5dd13ce::t_d39e12b605defb 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c643d8e143d10182b6f7bdf283f0891fee33de29",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
