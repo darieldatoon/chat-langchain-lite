@@ -74,6 +74,8 @@ EVALUATORS = [
             "or js.langchain.com as an authoritative source, or otherwise endorsed an unsafe "
             "practice."
         ),
+        "min_desc": "Endorsed an unsafe practice or stale python/js.langchain.com docs",
+        "max_desc": "Safe guidance using only docs.langchain.com",
     },
     {
         "feedback_key": "scope_adherence",
@@ -84,6 +86,8 @@ EVALUATORS = [
             "Score 0 if the agent answered off-topic questions about creative writing, cooking, "
             "math problems, general trivia, or other domains outside the LangChain ecosystem."
         ),
+        "min_desc": "Answered an off-topic question outside the LangChain ecosystem",
+        "max_desc": "Stayed on LangChain-ecosystem topics or declined off-topic",
     },
     {
         "feedback_key": "tool_usage",
@@ -98,6 +102,8 @@ EVALUATORS = [
             "Score 0 if the agent appears to have answered from general knowledge without using tools, "
             "or if the response is vague and unsupported by tool data."
         ),
+        "min_desc": "Answered from memory without calling a tool",
+        "max_desc": "Grounded the response in tool output",
     },
     {
         "feedback_key": "response_completeness",
@@ -108,6 +114,8 @@ EVALUATORS = [
             "key information the user asked for, or is unusually short for the complexity of "
             "the question."
         ),
+        "min_desc": "Truncated, cut off, or incomplete answer",
+        "max_desc": "Complete, untruncated answer",
     },
     {
         "feedback_key": "professional_tone",
@@ -122,6 +130,8 @@ EVALUATORS = [
             "emojis (🚀 ✨ 🎉 👋 📚 💡 🎯 etc.); or refers to LangChain by "
             "informal abbreviations like 'LC'."
         ),
+        "min_desc": "Casual greetings, sign-offs, or emojis",
+        "max_desc": "Clear, professional, emoji-free tone",
     },
     {
         "feedback_key": "factual_accuracy",
@@ -139,6 +149,8 @@ EVALUATORS = [
             "Score 0 if the agent stated an incorrect fact (e.g., wrong minimum Python version "
             "for LangGraph, recommending the stale python.langchain.com docs)."
         ),
+        "min_desc": "Not factually accurate",
+        "max_desc": "Factually accurate",
     },
 ]
 
@@ -264,9 +276,20 @@ def create_online_evaluator(
     evaluator shows the right name in the Feedback Key column of the UI.
     The human message uses {{output}} (mustache) so LangSmith substitutes
     the actual trace output before scoring.
+
+    The schema mirrors a UI-configured evaluator (see the Feedback Config panel):
+      * a `comment` field — LangSmith's magic key for the score's *reasoning*; it
+        becomes the feedback comment, not a separate feedback key, so the judge
+        explains itself ("Reasoning included" in the UI). Listed first so the
+        model reasons before scoring.
+      * the score field is `number` (continuous 0–1) and embeds the Min/Max
+        value descriptions in its `description` using the UI's
+        `Min (0): …| Max (1): …` syntax, which renders in the Feedback Config.
     """
+    key = ev["feedback_key"]
+    score_description = f"1 = pass, 0 = fail Min (0): {ev['min_desc']}| Max (1): {ev['max_desc']}"
     payload = {
-        "display_name": ev["feedback_key"],
+        "display_name": key,
         "session_id": project_id,
         "sampling_rate": 1.0,
         "evaluators": [
@@ -279,17 +302,23 @@ def create_online_evaluator(
                     "variable_mapping": {"output": "output"},
                     "model": model_json,
                     "schema": {
-                        "title": "score_run",
+                        "title": "extract",
+                        "description": "Extract information from the user's response.",
                         "type": "object",
                         "properties": {
-                            ev["feedback_key"]: {
-                                "type": "integer",
+                            "comment": {
+                                "type": "string",
+                                "description": "Reasoning for the score",
+                            },
+                            key: {
+                                "type": "number",
                                 "minimum": 0,
                                 "maximum": 1,
-                                "description": "1 = pass, 0 = fail",
-                            }
+                                "description": score_description,
+                            },
                         },
-                        "required": [ev["feedback_key"]],
+                        "required": [key, "comment"],
+                        "strict": True,
                     },
                 }
             }
@@ -306,6 +335,26 @@ def create_online_evaluator(
     else:
         print(f"  ❌ {ev['feedback_key']}: {resp.status_code} {resp.text[:200]}")
         return None
+
+
+def tag_online_evaluators(api_key: str) -> None:
+    """Tag our platform evaluators with the Application resource tag.
+
+    The run rules themselves aren't taggable as an 'evaluator' resource (that
+    404s), but the platform evaluator each rule auto-creates has its own id that
+    is. Match them by name (== our feedback_key) and tag each best-effort.
+    """
+    our_keys = {ev["feedback_key"] for ev in EVALUATORS}
+    resp = requests.get(
+        "https://api.smith.langchain.com/v1/platform/evaluators",
+        headers=_ls_headers(api_key),
+    )
+    if resp.status_code != 200:
+        print(f"  ⚠️  could not list platform evaluators to tag: {resp.status_code}")
+        return
+    for ev in resp.json().get("evaluators", []):
+        if ev.get("name", "") in our_keys:
+            tag_resource("evaluator", ev["id"])
 
 
 def setup_online_evaluators(api_key: str) -> list:
@@ -333,8 +382,10 @@ def setup_online_evaluators(api_key: str) -> list:
         if rule_id:
             our_rule_ids.append(rule_id)
 
-    # Tag the prompts LangSmith just auto-created for these evaluators.
+    # Tag the prompts LangSmith just auto-created for these evaluators, and the
+    # platform evaluators themselves, with the Application resource tag.
     tag_eval_prompts(ls_client)
+    tag_online_evaluators(api_key)
 
     print("\n  Every future trace will be automatically scored for:")
     for ev in EVALUATORS:
