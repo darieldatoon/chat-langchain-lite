@@ -1,0 +1,20 @@
+.env.example
+  s_7d02ceb5dd13ce::t_cc3d3fac4c99a4 9,11-12,15-19
+  s_7d02ceb5dd13ce::t_63a7935410c13c 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "09505da9728748be4f7bafcf08d0d1572c639897",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
