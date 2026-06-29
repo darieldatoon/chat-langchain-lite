@@ -1,0 +1,28 @@
+scripts/setup.py
+  s_7d02ceb5dd13ce::t_5ca5557071b624 117-118
+  s_7d02ceb5dd13ce::t_b4b34b8f358024 105-106
+  s_7d02ceb5dd13ce::t_d051cd7870088a 386
+  s_7d02ceb5dd13ce::t_194d0783b89e90 279-287,289-290,292,305-306,309-314,317-318,320-321
+  s_7d02ceb5dd13ce::t_0e74604862fa20 77-78
+  s_7d02ceb5dd13ce::t_7c7e0dfa1de90d 341-359
+  s_7d02ceb5dd13ce::t_d6a5ab2239a20e 152-153
+  s_7d02ceb5dd13ce::t_359b2cf0d6f002 133-134
+  s_7d02ceb5dd13ce::t_a8d8fa9e0aa534 89-90
+  s_7d02ceb5dd13ce::t_1868a16a8d5b54 340,385,388
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5c5f0e5635048b747beabeb5565a7ecab3046701",
+  "prompts": {},
+  "sessions": {
+    "s_7d02ceb5dd13ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "57d8cf43-6bfa-43ae-a6af-5210c85ab7a3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
