@@ -178,10 +178,45 @@ Haiku-vs-Sonnet story), **error rate**, and **👍/👎 feedback** over time. *S
 dashboard API; for a curated view you'd build a custom dashboard in the UI, but
 the built-in tab carries the demo.)*
 
-**Insights** ✅ *(UI walkthrough)* — *Show:* run the Insights agent on the project;
+**Insights** ✅ *(UI walkthrough)* — *Show:* run an Insights Report on the project;
 it clusters the off-topic failures you didn't anticipate (the seeded traffic has
-CI/CD, OAuth, transformer, K8s queries for it to find); optionally schedule a
-recurring report. *Say:* "Insights finds the *unknown* unknowns."
+vector-DB, OAuth, transformer, K8s/tracing, Django queries for it to find);
+optionally schedule a recurring report. *Say:* "Insights finds the *unknown*
+unknowns — and the big Off-topic cluster *is* defect 1 (the agent answers instead
+of declining)."
+
+*Prerequisites (one-time):* Insights needs a **Plus/Enterprise** plan and a
+**model configuration** for Insights in **Workspace Settings → Model
+Configurations** — pick **Anthropic** (we have `ANTHROPIC_API_KEY`); it uses a
+"thinking" model for clustering and a cheaper "summarization" model.
+
+*Generate:* **Tracing Projects → `chat-langchain-lite-<presenter>` → +New → New
+Insights Report.** Auto mode walks guided questions; reports take up to ~30 min.
+(For crisper clusters, thicken traffic first with `make traces`.)
+
+*Tuned Manual config (lands the bug story):* toggle **Manual** and set —
+
+- **Summary prompt** (extracts scope + behavior signals):
+  ```
+  Summarize this support interaction with Chat LangChain Lite.
+  Question: {{run.inputs}}
+  Answer: {{run.outputs}}
+  Feedback: {{run.feedback}}
+  State: (1) the user's topic, (2) whether it's within the LangChain
+  ecosystem (LangChain/LangGraph/LangSmith/Deep Agents) or off-topic,
+  (3) whether the assistant answered it or appropriately declined,
+  (4) the tone (professional vs casual/emoji).
+  ```
+- **Predefined top-level categories** (subcategories auto-generate): `In-scope —
+  LangChain ecosystem`, `Off-topic — general coding`, `Off-topic — infra &
+  DevOps`, `Off-topic — ML concepts`, `Off-topic — other LLM vendors`,
+  `Off-topic — business/strategy`.
+- **Boolean attributes** (steer clustering + aggregate per category): `in_scope`,
+  `declined_appropriately`, `professional_tone`.
+
+*Payoff:* a large **Off-topic** share with `declined_appropriately` ≈ false
+surfaces **Bug 1**; `professional_tone` ≈ false across categories surfaces **Bug
+2** — the unknowns Engine then fixes in the Context Hub prompt.
 
 **Human feedback** ✅ — *Show:* 👍/👎 + comment in the chat UI (presigned tokens,
 no API key in the browser); the vote shows on the trace and persists in history.
