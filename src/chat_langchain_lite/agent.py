@@ -1,4 +1,5 @@
 import os
+import uuid
 
 from deepagents.backends.context_hub import ContextHubBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware
@@ -48,17 +49,28 @@ def build_agent():
         # `model_name` (and max_tokens -> max_tokens_to_sample); ty reads the alias as
         # the param name and misflags the documented kwargs, so the line below is
         # suppressed. Correct at runtime (model resolves to a.model).
-        model=ChatAnthropic(model=_model_id(), max_tokens=300, temperature=0),  # ty: ignore[unknown-argument, missing-argument]
+        # Pin ls_provider/ls_model_name so LangSmith stamps cost-tracking metadata
+        # on every LLM child span regardless of integration auto-detect — without
+        # this, total_cost comes back null trace-wide.
+        model=ChatAnthropic(model=_model_id(), max_tokens=300, temperature=0).with_config(  # ty: ignore[unknown-argument, missing-argument]
+            {"metadata": {"ls_provider": "anthropic", "ls_model_name": _model_id()}}
+        ),
         tools=TOOLS,
         system_prompt=SYSTEM_PROMPT,
         middleware=[_readonly_context_hub_fs()],
     )
 
 
-def _config(thread_id: str | None = None) -> RunnableConfig:
-    metadata = {"demo": "true", "demo_type": settings.app_slug, "model": _model_id()}
-    if thread_id:
-        metadata["thread_id"] = thread_id
+def _config(thread_id: str | None = None, user_id: str | None = None) -> RunnableConfig:
+    metadata = {
+        "demo": "true",
+        "demo_type": settings.app_slug,
+        "model": _model_id(),
+        "environment": os.getenv("APP_ENV", "development"),
+        "thread_id": thread_id or str(uuid.uuid4()),
+    }
+    if user := (user_id or os.getenv("DEMO_USER_ID")):
+        metadata["user_id"] = user
     return RunnableConfig(
         run_name=f"{settings.app_slug}-demo",
         metadata=metadata,
@@ -70,9 +82,9 @@ def _user_msg(question: str) -> dict:
     return {"messages": [{"role": "user", "content": question}]}
 
 
-def invoke_agent(question: str, thread_id: str | None = None) -> dict:
+def invoke_agent(question: str, thread_id: str | None = None, user_id: str | None = None) -> dict:
     """Run the agent once. Returns {output, tools_called, messages}."""
-    result = build_agent().invoke(_user_msg(question), _config(thread_id))
+    result = build_agent().invoke(_user_msg(question), _config(thread_id, user_id))
     output = next(
         (
             m.content

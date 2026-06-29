@@ -638,7 +638,13 @@ async def send(session, q: str = ""):
             stream_mode="messages-tuple",
             stream_resumable=True,
             if_not_exists="create",
-            metadata={"demo": "true", "demo_type": settings.app_slug},
+            metadata={
+                "demo": "true",
+                "demo_type": settings.app_slug,
+                "thread_id": thread_id,
+                "environment": os.getenv("APP_ENV", "development"),
+                **({"user_id": uid} if (uid := os.getenv("DEMO_USER_ID")) else {}),
+            },
             config={
                 "run_name": f"{settings.app_slug}-demo",
                 "tags": ["engine-demo", settings.context_hub_repo],
