@@ -100,10 +100,18 @@ class Settings(BaseSettings):
 
     @property
     def online_eval_prefix(self) -> str:
-        return f"{APP_SLUG}-demo-"
+        # Presenter-scoped: the online evaluators are workspace-global objects
+        # (unlike projects/datasets, which are per-presenter by id). Scoping their
+        # *names* by presenter lets multiple demoers share one workspace without
+        # clobbering each other — setup's cleanup matches only this prefix.
+        return f"{APP_SLUG}-demo-{self.demo_presenter}-"
 
     def online_eval_display_name(self, feedback_key: str) -> str:
-        return f"{APP_SLUG}-demo-{feedback_key}-online"
+        # The run-rule display_name becomes the platform-evaluator name, which is
+        # what cleanup matches on — so it must be presenter-scoped. The *feedback
+        # key* (the schema property, e.g. "scope_adherence") stays clean and is
+        # what shows on traces; it's per-project, so it never collides.
+        return f"{self.online_eval_prefix}{feedback_key}-online"
 
     # ── Experiment prefixes (evaluate() appends a random suffix) ──────────────
     def baseline_experiment_prefix(self, label: str) -> str:

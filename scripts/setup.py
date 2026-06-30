@@ -225,31 +225,37 @@ def get_project_id(ls_client, project_name: str) -> str:
 
 
 def delete_existing_evaluators(api_key: str) -> None:
-    """Remove any existing chat-lc-lite-demo evaluators to avoid duplicates.
+    """Remove only THIS PRESENTER's online evaluators, to avoid duplicates.
+
+    Matching is by ``settings.online_eval_prefix``, which is presenter-scoped
+    (e.g. ``chat-langchain-lite-demo-darieldatoon-``). This is deliberately narrow:
+    the platform evaluators are workspace-global, so an earlier version that
+    matched bare feedback keys (``scope_adherence`` …) deleted *other* presenters'
+    evaluators sharing one workspace. We must never match by bare key — only by our
+    own prefix — so concurrent demoers can't clobber each other.
 
     Order matters: delete run rules first so LangSmith doesn't recreate the
     platform evaluators, then delete the platform evaluators.
     """
-    our_keys = {ev["feedback_key"] for ev in EVALUATORS}
+    prefix = settings.online_eval_prefix
 
-    # 1. Delete run rules first
+    # 1. Delete run rules first — only those whose display_name is under our prefix.
+    #    (No session filter: we want to clean our own orphans even if the project
+    #    was recreated; the presenter-scoped name already guarantees they're ours.)
     resp = requests.get(
         "https://api.smith.langchain.com/api/v1/runs/rules",
         headers=_ls_headers(api_key),
     )
     if resp.status_code == 200:
         for rule in resp.json():
-            name = rule.get("display_name", "")
-            # "chat-lc-lite-demo-" is the legacy prefix, kept for migration.
-            if name in our_keys or name.startswith(
-                (settings.online_eval_prefix, "chat-lc-lite-demo-")
-            ):
+            if (rule.get("display_name") or "").startswith(prefix):
                 requests.delete(
                     f"https://api.smith.langchain.com/api/v1/runs/rules/{rule['id']}",
                     headers=_ls_headers(api_key),
                 )
 
-    # 2. Then delete platform evaluators (run twice to catch any orphans)
+    # 2. Then delete platform evaluators (run twice to catch any orphans) — again
+    #    only those whose name is under our presenter-scoped prefix.
     for _ in range(2):
         resp = requests.get(
             "https://api.smith.langchain.com/v1/platform/evaluators",
@@ -260,8 +266,7 @@ def delete_existing_evaluators(api_key: str) -> None:
         ids_to_delete = [
             ev["id"]
             for ev in resp.json().get("evaluators", [])
-            if ev.get("name", "") in our_keys
-            or ev.get("name", "").startswith((settings.online_eval_prefix, "chat-lc-lite-demo-"))
+            if (ev.get("name") or "").startswith(prefix)
         ]
         for ev_id in ids_to_delete:
             requests.delete(
@@ -294,8 +299,11 @@ def create_online_evaluator(
     """
     key = ev["feedback_key"]
     score_description = f"1 = pass, 0 = fail Min (0): {ev['min_desc']}| Max (1): {ev['max_desc']}"
+    # display_name is presenter-scoped (becomes the platform-evaluator name that
+    # cleanup matches on); the schema property below stays the clean feedback key
+    # `key`, so trace scores still read e.g. "scope_adherence".
     payload = {
-        "display_name": key,
+        "display_name": settings.online_eval_display_name(key),
         "session_id": project_id,
         "sampling_rate": 1.0,
         "evaluators": [
@@ -348,9 +356,11 @@ def tag_online_evaluators(api_key: str) -> None:
 
     The run rules themselves aren't taggable as an 'evaluator' resource (that
     404s), but the platform evaluator each rule auto-creates has its own id that
-    is. Match them by name (== our feedback_key) and tag each best-effort.
+    is. Match them by our presenter-scoped name prefix (so we tag only this
+    presenter's evaluators, not another demoer's in the same workspace) and tag
+    each best-effort.
     """
-    our_keys = {ev["feedback_key"] for ev in EVALUATORS}
+    prefix = settings.online_eval_prefix
     resp = requests.get(
         "https://api.smith.langchain.com/v1/platform/evaluators",
         headers=_ls_headers(api_key),
@@ -359,7 +369,7 @@ def tag_online_evaluators(api_key: str) -> None:
         print(f"  ⚠️  could not list platform evaluators to tag: {resp.status_code}")
         return
     for ev in resp.json().get("evaluators", []):
-        if ev.get("name", "") in our_keys:
+        if (ev.get("name") or "").startswith(prefix):
             tag_resource("evaluator", ev["id"])
 
 
