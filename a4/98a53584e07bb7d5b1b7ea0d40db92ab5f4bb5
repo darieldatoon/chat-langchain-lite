@@ -1,0 +1,19 @@
+README.md
+  s_cf7ca6ea3f7309::t_7b6515e75de824 107,110,161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "a498a53584e07bb7d5b1b7ea0d40db92ab5f4bb5",
+  "prompts": {},
+  "sessions": {
+    "s_cf7ca6ea3f7309": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b127cc99-d256-4227-bd5b-ebb81837cc16",
+        "model": "unknown"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
