@@ -104,10 +104,10 @@ python -m scripts.setup
 python -m scripts.generate_traces
 
 # Start the chat UI (graph API + FastHTML frontend, served from one origin)
-langgraph dev
+uv run langgraph dev
 ```
 
-`langgraph dev` boots the LangGraph server; the chat UI is mounted on it and
+`uv run langgraph dev` boots the LangGraph server; the chat UI is mounted on it and
 served at the server root (**http://localhost:2024/**). The graph API on the same
 port powers streaming, thread history, and feedback.
 
@@ -158,7 +158,7 @@ LangGraph SDK on loopback — it never imports the graph directly.
 | `python -m scripts.run_evals --threshold 0.7` | Exits with code 1 if scores < 0.7 (used in CI) |
 | `python -m scripts.cleanup` | Resets demo to clean state — see Cleanup section |
 | `python -m scripts.cleanup --full` | Same, plus deletes the LangSmith project (so Engine sees a fresh project on the next demo). Re-run `scripts.setup` after. |
-| `langgraph dev` | Start the graph server with the Chat LangChain Lite UI mounted on it (http://localhost:2024/) |
+| `uv run langgraph dev` | Start the graph server with the Chat LangChain Lite UI mounted on it (http://localhost:2024/) |
 
 ## Evaluators
 
