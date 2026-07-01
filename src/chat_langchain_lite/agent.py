@@ -48,7 +48,7 @@ def build_agent():
         # `model_name` (and max_tokens -> max_tokens_to_sample); ty reads the alias as
         # the param name and misflags the documented kwargs, so the line below is
         # suppressed. Correct at runtime (model resolves to a.model).
-        model=ChatAnthropic(model=_model_id(), max_tokens=300, temperature=0),  # ty: ignore[unknown-argument, missing-argument]
+        model=ChatAnthropic(model=_model_id(), max_tokens=2048, temperature=0),  # ty: ignore[unknown-argument, missing-argument]
         tools=TOOLS,
         system_prompt=SYSTEM_PROMPT,
         middleware=[_readonly_context_hub_fs()],
