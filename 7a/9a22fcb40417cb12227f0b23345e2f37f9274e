@@ -1,0 +1,19 @@
+requirements.txt
+  s_cf7ca6ea3f7309::t_1bea4e74541f19 1-372
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.8",
+  "base_commit_sha": "7a9a22fcb40417cb12227f0b23345e2f37f9274e",
+  "prompts": {},
+  "sessions": {
+    "s_cf7ca6ea3f7309": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b127cc99-d256-4227-bd5b-ebb81837cc16",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Dariel Dato-on <293921406+darieldatoon@users.noreply.github.com>"
+    }
+  }
+}
