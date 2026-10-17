@@ -13,12 +13,13 @@ permissions:
 jobs:
   promote:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v7
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "$(git rev-list --count origin/main..origin/development 2>/dev/null || echo 1)" = "0" ]; then
+      - run: |
+          ahead=$(gh api "repos/$GH_REPO/compare/main...development" --jq .ahead_by)
+          if [ "$ahead" = "0" ]; then
             echo "development has nothing new for main."
             exit 0
           fi
@@ -28,5 +29,5 @@ jobs:
               --title "Promote development → main" \
               --body "Merging this deploys the changes on \`development\` to the production agent and Pages site."
           else
-            echo "PR #$existing already tracks development."
+            echo "PR #$existing already tracks development ($ahead commits ahead)."
           fi
