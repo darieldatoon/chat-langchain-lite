@@ -1,0 +1,77 @@
+name: Deploy agent
+
+# main deploys production, development deploys development. Manual runs use the selected branch,
+# so an environment can never receive another branch's code.
+on:
+  push:
+    branches: [main, development]
+    paths: ["agent/**", "pnpm-lock.yaml", "scripts/deploy-agent.mjs", ".github/workflows/deploy-agent.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+    steps:
+      - id: env
+        run: |
+          case "$GITHUB_REF_NAME" in
+            main) echo "environment=production" >> "$GITHUB_OUTPUT" ;;
+            development) echo "environment=development" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::Deploy from main (production) or development (development), not $GITHUB_REF_NAME"; exit 1 ;;
+          esac
+
+  ci:
+    needs: resolve
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: [resolve, ci]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-agent-${{ needs.resolve.outputs.environment }}
+      cancel-in-progress: false
+    env:
+      LANGSMITH_WORKSPACE_ID: ${{ vars.LANGSMITH_WORKSPACE_ID }}
+      PRODUCTION_DEPLOYMENT_TYPE: ${{ vars.PRODUCTION_DEPLOYMENT_TYPE || 'dev' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f
+        with:
+          mode: firewall-free
+      - run: sfw pnpm install --frozen-lockfile
+      - name: Write agent/.env
+        env:
+          LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+          LANGSMITH_GATEWAY_API_KEY: ${{ secrets.LANGSMITH_GATEWAY_API_KEY }}
+        run: |
+          umask 077
+          {
+            echo "LANGSMITH_API_KEY=$LANGSMITH_API_KEY"
+            echo "LANGSMITH_GATEWAY_API_KEY=$LANGSMITH_GATEWAY_API_KEY"
+            echo "MDA_CORS_ORIGINS=https://${{ github.repository_owner }}.github.io,http://localhost:5173"
+          } > agent/.env
+      - name: Deploy ${{ needs.resolve.outputs.environment }}
+        run: mise run deploy -- ${{ needs.resolve.outputs.environment }} 2>&1 | tee deploy.log
+      - name: Summarize
+        if: always()
+        run: |
+          url=$(sed -E 's/\x1b\[[0-9;]*m//g' deploy.log | grep -oE 'https://[a-z0-9-]+\.us\.langgraph\.app' | tail -1)
+          {
+            echo "### Agent ${{ needs.resolve.outputs.environment }}"
+            echo
+            echo "Agent Server URL: \`${url:-not found, see the deploy step log}\`"
+            echo
+            echo "Set it as the \`VITE_AGENT_URL_$(echo ${{ needs.resolve.outputs.environment }} | tr a-z A-Z)\` repo variable, then run the Pages workflow."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the deployed lockfile
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deployed-package-lock-${{ needs.resolve.outputs.environment }}
+          path: agent/.mda/build/package-lock.json
