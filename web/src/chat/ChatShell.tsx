@@ -1,5 +1,4 @@
 import { Client } from "@langchain/langgraph-sdk";
-import { Button } from "@langchain/macaw-components/Button";
 import { useColorScheme } from "@langchain/macaw-components/hooks/useColorScheme";
 import { IconButton } from "@langchain/macaw-components/IconButton";
 import { Text } from "@langchain/macaw-components/Text";
@@ -10,13 +9,15 @@ import { SignOutIcon } from "@phosphor-icons/react/dist/ssr/SignOut";
 import { SunIcon } from "@phosphor-icons/react/dist/ssr/Sun";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Brand } from "../app/Brand";
 import type { Route } from "../app/route";
+import { SegmentedControl, type SegmentedOption } from "../app/SegmentedControl";
 import { authHeaders } from "../auth/pat";
 import type { AgentEnvironment, AppConfig } from "../config";
 import { ChatView } from "./ChatView";
 import type { FeedbackDeps } from "./FeedbackBar";
 import { findProjectId, traceUrl } from "./langsmith";
-import { ThreadSidebar } from "./ThreadSidebar";
+import { BAR_HEIGHT, ThreadRail, ThreadSidebar } from "./ThreadSidebar";
 import { mergeRunIds, toThreadSummaries, toTitle, type ThreadSummary } from "./threads";
 
 interface ChatShellProps {
@@ -28,8 +29,15 @@ interface ChatShellProps {
   readonly onSignOut: () => void;
 }
 
-const THEME_ORDER = ["system", "light", "dark"] as const;
-const THEME_ICONS = { system: DesktopIcon, light: SunIcon, dark: MoonIcon } as const;
+type ThemeMode = "light" | "dark" | "system";
+
+const THEME_OPTIONS: readonly SegmentedOption<ThemeMode>[] = [
+  { value: "light", label: "Light theme", icon: SunIcon },
+  { value: "dark", label: "Dark theme", icon: MoonIcon },
+  { value: "system", label: "Match system theme", icon: DesktopIcon },
+];
+
+const COLLAPSED_KEY = "chat-langchain-lite:sidebar-collapsed";
 
 export function ChatShell({
   config,
@@ -45,6 +53,12 @@ export function ChatShell({
     [environment.url, headers],
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
+  const toggleCollapsed = () =>
+    setCollapsed((value) => {
+      localStorage.setItem(COLLAPSED_KEY, value ? "0" : "1");
+      return !value;
+    });
   // Bumped only by user navigation, so assigning an id to a brand-new thread doesn't remount the stream.
   const [session, setSession] = useState(0);
 
@@ -70,38 +84,67 @@ export function ChatShell({
     onNavigate(route);
   };
 
+  const sidebar = {
+    threads,
+    error: threadsError,
+    selectedId: threadId,
+    onSelect: (id: string) => go({ environment: environment.id, threadId: id }),
+    onNewChat: () => go({ environment: environment.id, threadId: null }),
+  };
+
   return (
-    <div className="flex h-full flex-col bg-surface-level-1 text-primary">
-      <Header
-        config={config}
-        environment={environment}
-        onToggleSidebar={() => setSidebarOpen((open) => !open)}
-        onSelectEnvironment={(id) => go({ environment: id, threadId: null })}
-        onSignOut={onSignOut}
-      />
-      <div className="relative flex min-h-0 flex-1">
-        {sidebarOpen ? (
-          <button
-            type="button"
-            aria-label="Close conversations"
-            className="absolute inset-0 z-10 bg-overlay lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        ) : null}
-        <aside
-          className={`absolute inset-y-0 left-0 z-20 w-72 border-r border-default bg-surface-level-1 transition-transform lg:static lg:translate-x-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <ThreadSidebar
-            threads={threads}
-            error={threadsError}
-            selectedId={threadId}
-            onSelect={(id) => go({ environment: environment.id, threadId: id })}
-            onNewChat={() => go({ environment: environment.id, threadId: null })}
-          />
-        </aside>
-        <main className="min-w-0 flex-1">
+    <div className="flex h-full bg-surface-level-1 text-primary">
+      {/* Desktop: a full-height sidebar that collapses to a rail. */}
+      <aside
+        className={`hidden shrink-0 border-r border-default transition-[width] duration-200 lg:block ${
+          collapsed ? "w-14" : "w-64"
+        }`}
+      >
+        {collapsed ? (
+          <ThreadRail onExpand={toggleCollapsed} onNewChat={sidebar.onNewChat} />
+        ) : (
+          <ThreadSidebar {...sidebar} onHide={toggleCollapsed} hideLabel="Hide threads" />
+        )}
+      </aside>
+
+      {/* Mobile and tablet: the same sidebar as a drawer. */}
+      {sidebarOpen ? (
+        <button
+          type="button"
+          aria-label="Close threads"
+          className="fixed inset-0 z-10 bg-overlay lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      ) : null}
+      <aside
+        className={`fixed inset-y-0 left-0 z-20 w-72 border-r border-default bg-surface-level-1 transition-transform lg:hidden ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <ThreadSidebar
+          {...sidebar}
+          onHide={() => setSidebarOpen(false)}
+          hideLabel="Close threads"
+          footer={
+            <div className="flex items-center justify-between sm:hidden">
+              <Text variant="xs" color="tertiary">
+                Theme
+              </Text>
+              <ThemePicker />
+            </div>
+          }
+        />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Header
+          config={config}
+          environment={environment}
+          onOpenSidebar={() => setSidebarOpen(true)}
+          onSelectEnvironment={(id) => go({ environment: id, threadId: null })}
+          onSignOut={onSignOut}
+        />
+        <main className="min-h-0 flex-1">
           <ChatView
             key={`${environment.id}:${session}`}
             environment={environment}
@@ -126,62 +169,53 @@ export function ChatShell({
 function Header({
   config,
   environment,
-  onToggleSidebar,
+  onOpenSidebar,
   onSelectEnvironment,
   onSignOut,
 }: {
   readonly config: AppConfig;
   readonly environment: AgentEnvironment;
-  readonly onToggleSidebar: () => void;
+  readonly onOpenSidebar: () => void;
   readonly onSelectEnvironment: (id: AgentEnvironment["id"]) => void;
   readonly onSignOut: () => void;
 }) {
-  const { mode, setMode } = useColorScheme();
-  const nextMode = THEME_ORDER[(THEME_ORDER.indexOf(mode) + 1) % THEME_ORDER.length]!;
-
   return (
-    <header className="flex items-center gap-space-2 border-b border-default px-space-3 py-space-2">
+    <header
+      className={`flex ${BAR_HEIGHT} shrink-0 items-center gap-space-2 border-b border-default px-space-3`}
+    >
       <div className="lg:hidden">
-        <IconButton
-          icon={ListIcon}
-          label="Conversations"
-          variant="plain"
-          onClick={onToggleSidebar}
-        />
+        <IconButton icon={ListIcon} label="Show threads" variant="plain" onClick={onOpenSidebar} />
       </div>
-      <Text variant="h5" className="truncate">
-        Chat LangChain Lite
-      </Text>
+      <Brand />
       <div className="ml-auto flex items-center gap-space-2">
         {config.environments.length > 1 ? (
-          <div role="group" aria-label="Agent environment" className="flex gap-space-1">
-            {config.environments.map((option) => (
-              <Button
-                key={option.id}
-                size="sm"
-                variant={option.id === environment.id ? "normal" : "plain"}
-                aria-pressed={option.id === environment.id}
-                onClick={() => onSelectEnvironment(option.id)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Agent environment"
+            tone="brand"
+            options={config.environments.map((option) => ({
+              value: option.id,
+              label: option.label,
+            }))}
+            value={environment.id}
+            onChange={onSelectEnvironment}
+          />
         ) : (
           <Text variant="xs" color="tertiary">
             {environment.label}
           </Text>
         )}
-        <IconButton
-          icon={THEME_ICONS[mode]}
-          label={`Theme: ${mode}. Switch to ${nextMode}`}
-          variant="plain"
-          onClick={() => setMode(nextMode)}
-        />
+        <div className="hidden sm:block">
+          <ThemePicker />
+        </div>
         <IconButton icon={SignOutIcon} label="Sign out" variant="plain" onClick={onSignOut} />
       </div>
     </header>
   );
+}
+
+function ThemePicker() {
+  const { mode, setMode } = useColorScheme();
+  return <SegmentedControl label="Theme" options={THEME_OPTIONS} value={mode} onChange={setMode} />;
 }
 
 function useThreads(client: Client) {
