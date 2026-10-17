@@ -54,7 +54,8 @@ jobs:
           {
             echo "LANGSMITH_API_KEY=$LANGSMITH_API_KEY"
             echo "LANGSMITH_GATEWAY_API_KEY=$LANGSMITH_GATEWAY_API_KEY"
-            echo "MDA_CORS_ORIGINS=https://${{ github.repository_owner }}.github.io,http://localhost:5173"
+            # Replaces the deployment's default allow-list: smith.langchain.com keeps the LangSmith UI working.
+            echo "MDA_CORS_ORIGINS=https://smith.langchain.com,https://${{ github.repository_owner }}.github.io,http://localhost:5173"
           } > agent/.env
       - name: Deploy ${{ needs.resolve.outputs.environment }}
         run: mise run deploy -- ${{ needs.resolve.outputs.environment }} 2>&1 | tee deploy.log

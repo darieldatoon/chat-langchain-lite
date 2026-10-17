@@ -15,6 +15,7 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - **The planted bugs are intentional.** Don't fix `maxTokens: 300` in `agent/model.ts` or the tone in `agent/instructions.md` unless the task is to fix them.
 - **`thinking` stays disabled** on the model. With thinking on, Haiku spends the 300-token budget thinking and replies come back empty.
 - **The assistant id `chat-langchain-lite`** appears in `agent/agent.ts` and `web/src/config.ts`. Change both or neither.
+- **`MDA_CORS_ORIGINS` must include `https://smith.langchain.com`.** It replaces the deployment's default CORS allow-list; without it the LangSmith UI (Deployments, Studio) can't reach the agent.
 - **No `[env]` defaults in the root `mise.toml`.** mise env overrides CI's variables.
 - **Secrets live only in `agent/.env`.** Never add keys to Vite env (`VITE_*` values are public) or commit them.
 
