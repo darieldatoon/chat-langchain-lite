@@ -17,6 +17,7 @@
     "@langchain/langgraph-checkpoint": "1.2.0",
     "@langchain/langgraph-sdk": "1.12.5",
     "@langchain/mcp-adapters": "2.0.1",
+    "@langchain/openai": "1.6.2",
     "deepagents": "1.15.1",
     "hono": "4.13.13",
     "jose": "6.2.12",

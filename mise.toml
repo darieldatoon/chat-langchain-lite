@@ -1,7 +1,7 @@
 monorepo_root = true
 
 [monorepo]
-config_roots = ["agent", "web"]
+config_roots = ["agent", "web", "evals"]
 
 [tools]
 node = "24.22.0"
@@ -26,12 +26,16 @@ description = "Run the local agent (:2024) and web app (:5173)"
 depends = ["//agent:dev", "//web:dev"]
 
 [tasks.check]
-description = "Format check, lint and typecheck both packages"
-depends = ["//agent:check", "//web:check"]
+description = "Format check, lint and typecheck every package"
+depends = ["//agent:check", "//web:check", "//evals:check"]
 
 [tasks.test]
-description = "Run unit tests for both packages"
-depends = ["//agent:test", "//web:test"]
+description = "Run unit tests for every package"
+depends = ["//agent:test", "//web:test", "//evals:test"]
+
+[tasks."demo:prepare"]
+description = "Seed the dataset, create evaluators, send traffic and pre-run experiments"
+run = "mise run //evals:prepare"
 
 [tasks.deploy]
 description = "Deploy the agent: mise run deploy -- <development|production>"
