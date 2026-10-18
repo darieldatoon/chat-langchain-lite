@@ -61,7 +61,7 @@ Locally, `mda dev` doesn't enforce sign-in, so any value works on the sign-in pa
 3. Sends sample questions to `production`.
 4. Pre-runs three experiments: production, development, and development with gpt-6-luna.
 
-Use `--only <steps>`, `--split demo` and `--roles <roles>` to run part of it. It needs `LANGSMITH_API_KEY` (from `agent/.env` or a repo secret), `LANGSMITH_WORKSPACE_ID`, both environments deployed, and the workspace secret `LC_GATEWAY_KEY` for the tone evaluator.
+Use `--only <steps>`, `--split demo` and `--roles <roles>` to run part of it. It needs `LANGSMITH_API_KEY` (from `agent/.env` or a repo secret), `LANGSMITH_WORKSPACE_ID`, both environments deployed, `development` ahead of `main` (it warns otherwise), and the workspace secret `LC_GATEWAY_KEY` for the tone evaluator.
 
 ## How deploys work
 
@@ -72,13 +72,15 @@ One agent, `chat-langchain-lite`, per workspace, with two environments:
 | `production` | `main` | `PRODUCTION_DEPLOYMENT_TYPE` (default `dev`) |
 | `development` | `development` | `dev` |
 
-GitHub Actions runs CI, then `mda deploy`, on every push to those branches. A pushed `development` branch keeps a "Promote development → main" PR open.
+GitHub Actions runs CI, then `mda deploy`, on every push to those branches that changes `agent/`.
+
+`development` runs one commit ahead of `main` on purpose, so the demo has a candidate to compare against production. To release it, open a pull request from `development` into `main` and merge it with a merge commit. A squash merge leaves `development` looking ahead with nothing new. After anything lands on `main` directly, merge `main` back into `development`.
 
 The deployment type is fixed when a deployment is first created. Changing it later means deleting and recreating the deployment.
 
 ## Fork setup
 
-1. Fork this repo and create a `development` branch from `main`.
+1. Fork this repo with **Copy the `main` branch only** unchecked, so you get `development` too. For a fork that only has `main`, add the original repo as the `upstream` remote and run `git fetch upstream development && git push origin upstream/development:development`.
 2. In **Settings → Secrets and variables → Actions**, add:
 
    | Kind | Name | Value |
@@ -87,7 +89,7 @@ The deployment type is fixed when a deployment is first created. Changing it lat
    | Secret | `LANGSMITH_GATEWAY_API_KEY` | Your `LC_GATEWAY_KEY` |
    | Variable | `LANGSMITH_WORKSPACE_ID` | Your workspace id |
 
-3. In **Settings → Pages**, set the source to **GitHub Actions**. In **Settings → Actions → General**, allow GitHub Actions to create pull requests.
+3. In **Settings → Pages**, set the source to **GitHub Actions**.
 4. In **Actions → Deploy agent**, run the workflow with the `development` branch selected, then with `main`. Copy each Agent Server URL from the run summary into the `VITE_AGENT_URL_DEVELOPMENT` and `VITE_AGENT_URL_PRODUCTION` variables.
 5. Run **Actions → Pages**. Your app is at `https://<you>.github.io/<repo>/`.
 

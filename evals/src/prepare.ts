@@ -1,8 +1,10 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
 import { ask, findDeployment, type Deployment } from "./agent.ts";
 import { createApi, type Api } from "./api.ts";
+import { developmentGap, parseGitHubRepo } from "./branches.ts";
 import { readConfig, type Config } from "./config.ts";
 import { seedDataset, type SeedExample } from "./dataset.ts";
 import {
@@ -51,6 +53,30 @@ async function checkReadiness(config: Config, deployments: readonly Deployment[]
         metadata: { source: "demo-prepare-readiness" },
       }),
     ),
+  );
+}
+
+function githubRepo(env: Record<string, string | undefined>): string | null {
+  if (env.GITHUB_REPOSITORY) return env.GITHUB_REPOSITORY;
+  try {
+    return parseGitHubRepo(
+      execFileSync("git", ["remote", "get-url", "origin"], { encoding: "utf8" }),
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Warns, without failing, when development has nothing main lacks: the candidate would rerun the baseline. */
+async function checkBranches(env: Record<string, string | undefined>) {
+  const repo = githubRepo(env);
+  if (!repo) return log("branch check skipped: no GitHub origin remote");
+  const gap = await developmentGap(repo, { token: env.GH_TOKEN ?? env.GITHUB_TOKEN });
+  if (gap.kind === "ahead")
+    return log(`branch check ok: development is ${gap.commits} commit(s) ahead of main`);
+  if (gap.kind === "unknown") return log(`branch check skipped for ${repo}: ${gap.reason}`);
+  log(
+    `WARNING: development has no commits that main lacks in ${repo}, so the development-candidate experiment will match the baseline. Fork with every branch copied, or push upstream's development branch to your fork.`,
   );
 }
 
@@ -103,6 +129,7 @@ async function main() {
   if (steps.has("readiness")) {
     await checkReadiness(config, [production, development]);
     log("readiness ok: both deployments answered");
+    await checkBranches(process.env);
   }
 
   const dataset = await seedDataset(api, seeds);
