@@ -19,9 +19,10 @@ import { Markdown } from "./Markdown";
 import { toTurns, type AssistantSegment, type MessageLike, type Turn } from "./turns";
 
 const STARTERS = [
-  "What is LangGraph, and how does checkpointing work?",
-  "How do I add LangSmith tracing to a LangChain app?",
+  "What is a LangGraph checkpointer?",
   "When should I use Deep Agents instead of plain LangGraph?",
+  "I built a research agent with create_deep_agent (python). How do I (1) get its runs into LangSmith and (2) score it against a fixed set of test questions so I can compare prompt changes?",
+  "how do i add memory?",
 ];
 
 interface ChatViewProps {
