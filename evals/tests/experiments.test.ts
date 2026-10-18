@@ -4,6 +4,7 @@ import {
   completionOf,
   EXPERIMENTS,
   experimentName,
+  isSameExperiment,
   OFFLINE_KEYS,
   waitForScores,
 } from "../src/experiments.ts";
@@ -99,5 +100,15 @@ describe("experimentName with a split", () => {
     expect(experimentName(spec, "rev12345", asOf, "demo")).toBe(
       `${experimentName(spec, "rev12345", asOf)}::split-demo`,
     );
+  });
+});
+
+describe("isSameExperiment", () => {
+  it("matches the suffixed names the studio_experiment endpoint creates, but not a different split", () => {
+    const base = "production-baseline::rev-92eaa3a7::data-20261018T022918";
+    expect(isSameExperiment(`${base}::bff97301`, base)).toBe(true);
+    expect(isSameExperiment(`${base}::retry-1792290000000::bff97301`, base)).toBe(true);
+    expect(isSameExperiment(base, base)).toBe(true);
+    expect(isSameExperiment(`${base}::split-demo::1a2b3c4d`, base)).toBe(false);
   });
 });
