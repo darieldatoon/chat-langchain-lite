@@ -16,11 +16,19 @@ export const contextSchema = z.object({ eval_model: z.enum(MODEL_CHOICES).option
 
 // A factory, so the model is chosen per run and summarization inherits it too.
 export function agent(runtime: ManagedServerRuntime) {
+  const evalModel = runtime.executionRuntime?.context?.eval_model;
+  const revisionId = process.env.LANGSMITH_REVISION_ID;
   return defineDeepAgent({
     // Also the assistant id, Context Hub repo and tracing project prefix; the web app hardcodes it.
     name: "chat-langchain-lite",
-    model: createModel(process.env, chooseModel(runtime.executionRuntime?.context?.eval_model)),
+    model: createModel(process.env, chooseModel(evalModel)),
     contextSchema,
     middleware: [modelCallLimitMiddleware({ runLimit: 25, exitBehavior: "end" })],
+    // Root-trace fields. A caller's run metadata overrides them, so an experiment that keeps the
+    // default model can still send environment: "eval".
+    metadata: {
+      environment: evalModel === undefined ? "production" : "eval",
+      ...(revisionId ? { revision_id: revisionId } : {}),
+    },
   });
 }
