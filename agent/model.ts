@@ -21,8 +21,7 @@ export function modelOptions(env: Env) {
     model: "claude-haiku-5-5",
     anthropicApiUrl: GATEWAY_ANTHROPIC_URL,
     apiKey: gatewayApiKey(env),
-    // Planted bug B1: answers stop mid-sentence. Thinking stays off so the budget goes to visible text.
-    maxTokens: 300,
+    maxTokens: 900,
     thinking: { type: "disabled" as const },
   };
 }

@@ -23,8 +23,7 @@ describe("modelOptions", () => {
     expect(options.anthropicApiUrl).toBe(GATEWAY_ANTHROPIC_URL);
   });
 
-  it("keeps planted bug B1 visible: 300-token cap with thinking off", () => {
-    expect(options.maxTokens).toBe(300);
+  it("disables extended thinking", () => {
     expect(options.thinking).toEqual({ type: "disabled" });
   });
 });

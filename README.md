@@ -2,13 +2,6 @@
 
 A small LangChain docs assistant that Deployed Engineers use to demo LangSmith. It runs as a TypeScript [Managed Deep Agent](https://docs.langchain.com/langsmith/javascript/managed-deep-agents-quickstart) with a React chat app on GitHub Pages.
 
-The agent has planted flaws, on purpose, so a demo can show LangSmith finding and fixing them:
-
-| Bug | Where | What you see |
-|---|---|---|
-| B1 | `agent/model.ts` (`maxTokens: 300`) | Answers stop mid-sentence |
-| B2 | `agent/instructions.md` | Emoji, slang, and "LC" instead of LangChain |
-
 ## Repo layout
 
 ```
