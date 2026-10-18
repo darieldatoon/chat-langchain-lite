@@ -40,6 +40,12 @@ export function experimentName(
   return split ? `${name}::split-${split}` : name;
 }
 
+/** The base name, plus an optional retry tag and the 8-hex suffix studio_experiment appends. */
+export function isSameExperiment(sessionName: string, baseName: string): boolean {
+  const escaped = baseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped}(::retry-\\d+)?(::[0-9a-f]{8})?$`).test(sessionName);
+}
+
 interface SessionStats {
   readonly id: string;
   readonly name: string;
@@ -106,11 +112,12 @@ export async function runExperiment(options: {
   const expectedRows = examples.length * spec.repetitions;
   const baseName = experimentName(spec, deployment.revisionId, asOf, split);
 
+  // The studio_experiment endpoint appends a random suffix to the name, so match on the prefix.
   const existing = await api.get<SessionStats[]>("/sessions", {
-    name: baseName,
+    name_contains: baseName,
     reference_dataset: datasetId,
   });
-  const match = existing.find((session) => session.name === baseName);
+  const match = existing.find((session) => isSameExperiment(session.name, baseName));
   if (match) {
     const completion = completionOf(await sessionStats(api, match.id), expectedRows, OFFLINE_KEYS);
     if (completion.complete) {
