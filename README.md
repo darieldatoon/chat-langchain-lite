@@ -7,10 +7,11 @@ A small LangChain docs assistant that Deployed Engineers use to demo LangSmith. 
 ```
 agent/   Managed Deep Agent (deployed with mda)
 web/     Vite+ / React / Macaw chat app (GitHub Pages)
+evals/   eval dataset, hosted evaluators and the demo prepare step
 scripts/ setup and deploy helpers
 ```
 
-`agent/` and `web/` share one pnpm workspace. `agent/` must never contain a lockfile: `mda` copies the folder into its build, and a lockfile there breaks LangSmith's builder.
+`agent/`, `web/` and `evals/` share one pnpm workspace. `agent/` must never contain a lockfile: `mda` copies the folder into its build, and a lockfile there breaks LangSmith's builder.
 
 ## Quick start
 
@@ -49,6 +50,18 @@ Locally, `mda dev` doesn't enforce sign-in, so any value works on the sign-in pa
 | `mise run test` | Unit tests |
 | `mise run deploy -- development` | Deploy the `development` environment to `LANGSMITH_WORKSPACE_ID` |
 | `mise run deploy -- production` | Deploy the `production` environment |
+| `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators and triage queue, send sample traffic, and pre-run the experiments |
+
+## Evals
+
+`mise run demo:prepare` (or **Actions → Prepare demo**) gets a workspace ready for the demo. It's safe to re-run; finished work is skipped.
+
+1. Seeds the `chat-langchain-lite` dataset from `evals/dataset/examples.json`. Each example is a question plus assertions a correct answer must satisfy.
+2. Creates the hosted evaluators: the built-in Assertions judge, a Jev decision model for tone, a JavaScript check that answers cite the docs they searched, and LangSmith's Trajectory Accuracy judge on production. It also creates a triage annotation queue that collects thumbs-down answers.
+3. Sends sample questions to `production`.
+4. Pre-runs three experiments: production, development, and development with gpt-6-luna.
+
+Use `--only <steps>`, `--split demo` and `--roles <roles>` to run part of it. It needs `LANGSMITH_API_KEY` (from `agent/.env` or a repo secret), `LANGSMITH_WORKSPACE_ID`, both environments deployed, and the workspace secret `LC_GATEWAY_KEY` for the tone evaluator.
 
 ## How deploys work
 

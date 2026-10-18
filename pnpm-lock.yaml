@@ -70,17 +70,35 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@types/node@26.6.5)(@vitest/browser-preview@5.0.5)(@vitest/ui@5.0.5)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
 
+  evals:
+    devDependencies:
+      '@types/node':
+        specifier: 26.6.5
+        version: 26.6.5
+      oxfmt:
+        specifier: 0.73.0
+        version: 0.73.0(vite-plus@1.3.0(@types/node@26.6.5)(@vitest/ui@5.0.5)(jiti@1.21.7)(typescript@7.0.2)(yaml@2.9.1))
+      oxlint:
+        specifier: 1.88.0
+        version: 1.88.0(oxlint-tsgolint@7.0.2004)(vite-plus@1.3.0(@types/node@26.6.5)(@vitest/ui@5.0.5)(jiti@1.21.7)(typescript@7.0.2)(yaml@2.9.1))
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@types/node@26.6.5)(@vitest/browser-preview@5.0.5)(@vitest/ui@5.0.5)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
+
   web:
     dependencies:
       '@langchain/langgraph-sdk':
         specifier: 1.12.5
-        version: 1.12.5(@langchain/core@1.2.18(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.12.5(@langchain/core@1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@langchain/macaw-components':
         specifier: 1.0.0-beta.9
         version: 1.0.0-beta.9(@babel/runtime@7.29.10)(@codemirror/autocomplete@6.20.3)(@codemirror/search@6.7.2)(@codemirror/theme-one-dark@6.1.3)(@shikijs/themes@4.5.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(codemirror@6.0.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(tailwindcss@3.4.19(yaml@2.9.1))
       '@langchain/react':
         specifier: 1.2.5
-        version: 1.2.5(@langchain/core@1.2.18(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 1.2.5(@langchain/core@1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@phosphor-icons/react':
         specifier: 2.1.10
         version: 2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -3765,22 +3783,6 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/core@1.2.18(ws@8.22.0)':
-    dependencies:
-      '@cfworker/json-schema': 4.1.1
-      '@standard-schema/spec': 1.1.0
-      js-tiktoken: 1.0.21
-      langsmith: 0.11.0(ws@8.22.0)
-      mustache: 4.2.0
-      p-queue: 6.6.2
-      zod: 4.6.7
-    transitivePeerDependencies:
-      - '@opentelemetry/api'
-      - '@opentelemetry/exporter-trace-otlp-proto'
-      - '@opentelemetry/sdk-trace-base'
-      - openai
-      - ws
-
   '@langchain/langgraph-checkpoint@1.2.0(@langchain/core@1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))':
     dependencies:
       '@langchain/core': 1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0)
@@ -3788,17 +3790,6 @@ snapshots:
   '@langchain/langgraph-sdk@1.12.5(@langchain/core@1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@langchain/core': 1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0)
-      '@langchain/protocol': 0.0.19
-      '@types/json-schema': 7.0.15
-      p-queue: 9.3.5
-      p-retry: 7.1.1
-    optionalDependencies:
-      react: 19.3.1
-      react-dom: 19.3.1(react@19.3.1)
-
-  '@langchain/langgraph-sdk@1.12.5(@langchain/core@1.2.18(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
-    dependencies:
-      '@langchain/core': 1.2.18(ws@8.22.0)
       '@langchain/protocol': 0.0.19
       '@types/json-schema': 7.0.15
       p-queue: 9.3.5
@@ -3936,10 +3927,10 @@ snapshots:
 
   '@langchain/protocol@0.0.19': {}
 
-  '@langchain/react@1.2.5(@langchain/core@1.2.18(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@langchain/react@1.2.5(@langchain/core@1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
-      '@langchain/core': 1.2.18(ws@8.22.0)
-      '@langchain/langgraph-sdk': 1.12.5(@langchain/core@1.2.18(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@langchain/core': 1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0)
+      '@langchain/langgraph-sdk': 1.12.5(@langchain/core@1.2.18(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
     transitivePeerDependencies:
       - react-dom
@@ -5941,12 +5932,6 @@ snapshots:
       p-queue: 6.6.2
     optionalDependencies:
       openai: 7.36.0(ws@8.22.0)(zod@4.6.7)
-      ws: 8.22.0
-
-  langsmith@0.11.0(ws@8.22.0):
-    dependencies:
-      p-queue: 6.6.2
-    optionalDependencies:
       ws: 8.22.0
 
   langsmith@0.8.12(openai@7.36.0(ws@8.22.0)(zod@4.6.7))(ws@8.22.0):
