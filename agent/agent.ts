@@ -3,7 +3,7 @@ import { modelCallLimitMiddleware } from "langchain";
 import { defineDeepAgent, type ManagedServerRuntime } from "managed-deepagents";
 import { z } from "zod";
 
-import { chooseModel, createModel, MODEL_CHOICES } from "./model.js";
+import { chooseModel, createModel, MODEL_CHOICES, truncationNoteMiddleware } from "./model.js";
 
 // Docs searches must stay in the root trace, where evaluators read them; the built-in
 // general-purpose subagent would run them out of sight.
@@ -21,6 +21,9 @@ export function agent(runtime: ManagedServerRuntime) {
     name: "chat-langchain-lite",
     model: createModel(process.env, chooseModel(runtime.executionRuntime?.context?.eval_model)),
     contextSchema,
-    middleware: [modelCallLimitMiddleware({ runLimit: 25, exitBehavior: "end" })],
+    middleware: [
+      modelCallLimitMiddleware({ runLimit: 25, exitBehavior: "end" }),
+      truncationNoteMiddleware,
+    ],
   });
 }
