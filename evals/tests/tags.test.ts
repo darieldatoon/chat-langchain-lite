@@ -19,6 +19,14 @@ describe("taggablesFor", () => {
       { type: "evaluator", id: "ev-code" },
     ]);
   });
+
+  it("tags an LLM evaluator's alignment queue", () => {
+    expect(
+      taggablesFor("ds-1", undefined, [
+        { id: "ev-1", llm_evaluator: { prompt_id: "prompt-1", annotation_queue_id: "aq-1" } },
+      ]),
+    ).toContainEqual({ type: "queue", id: "aq-1" });
+  });
 });
 
 describe("tagAgentResources", () => {

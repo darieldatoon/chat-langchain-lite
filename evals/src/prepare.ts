@@ -12,6 +12,8 @@ import {
   citesRule,
   ensureRule,
   resolveJudge,
+  sharedRule,
+  toneLlmRule,
   toneRule,
   trajectoryRule,
   type EnsureResult,
@@ -143,15 +145,21 @@ async function main() {
     const judge = await resolveJudge(api);
     const code = await readFile(new URL("evaluators/cites-retrieved-docs.js", root), "utf8");
     const datasetTarget: RuleTarget = { kind: "dataset", datasetId: dataset.id };
+    const tone = await ensureRule(api, datasetTarget, toneRule(dataset.id));
+    const toneLlm = await ensureRule(api, datasetTarget, toneLlmRule(dataset.id));
+    const cites = await ensureRule(api, datasetTarget, citesRule(dataset.id, code));
     const results: EnsureResult[] = [
       await ensureRule(api, datasetTarget, assertionsRule(dataset.id, judge)),
-      await ensureRule(api, datasetTarget, toneRule(datasetTarget)),
-      await ensureRule(api, datasetTarget, citesRule(datasetTarget, code)),
+      tone,
+      toneLlm,
+      cites,
     ];
     for (const deployment of [production, development]) {
       const target: RuleTarget = { kind: "session", sessionId: deployment.tracerSessionId };
-      results.push(await ensureRule(api, target, toneRule(target)));
-      results.push(await ensureRule(api, target, citesRule(target, code)));
+      for (const source of [tone, cites])
+        results.push(await ensureRule(api, target, sharedRule(target, source)));
+      // Off until someone turns it on: Jev already scores tone on every trace.
+      results.push(await ensureRule(api, target, sharedRule(target, toneLlm, { enabled: false })));
     }
     results.push(
       await ensureRule(

@@ -57,7 +57,7 @@ Locally, `mda dev` doesn't enforce sign-in, so any value works on the sign-in pa
 `mise run demo:prepare` (or **Actions → Prepare demo**) gets a workspace ready for the demo. It's safe to re-run; finished work is skipped.
 
 1. Seeds the `chat-langchain-lite` dataset from `evals/dataset/examples.json`. Each example is a question plus assertions a correct answer must satisfy.
-2. Creates the hosted evaluators: the built-in Assertions judge, a Jev decision model for tone, a JavaScript check that answers cite the docs they searched, and LangSmith's Trajectory Accuracy judge on production. It also creates a triage annotation queue that collects thumbs-down answers. The dataset, queue, evaluators and their prompts are tagged to the `chat-langchain-lite` agent, so they show up under it in LangSmith.
+2. Creates the hosted evaluators: the built-in Assertions judge, a Jev decision model for tone, a gpt-6-luna tone judge (`professional_tone_llm`) with an alignment queue for tuning it against human labels (on for experiments, attached but off for traces), a JavaScript check that answers cite the docs they searched, and LangSmith's Trajectory Accuracy judge on production. It also creates a triage annotation queue that collects thumbs-down answers. The dataset, queue, evaluators and their prompts are tagged to the `chat-langchain-lite` agent, so they show up under it in LangSmith.
 3. Sends sample questions to `production`.
 4. Pre-runs three experiments: production, development, and development with gpt-6-luna.
 

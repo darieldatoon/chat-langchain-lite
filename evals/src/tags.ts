@@ -9,10 +9,22 @@ export interface Taggable {
 
 export interface EvaluatorRecord {
   readonly id: string;
-  readonly llm_evaluator?: { readonly prompt_id: string } | null;
+  readonly llm_evaluator?: {
+    readonly prompt_id: string;
+    readonly annotation_queue_id?: string | null;
+  } | null;
 }
 
-/** Each LLM evaluator owns the prompt its rule created; code evaluators have none. */
+function ownedBy(evaluator: EvaluatorRecord): Taggable[] {
+  const llm = evaluator.llm_evaluator;
+  if (!llm) return [];
+  return [
+    { type: "prompt", id: llm.prompt_id },
+    ...(llm.annotation_queue_id ? [{ type: "queue" as const, id: llm.annotation_queue_id }] : []),
+  ];
+}
+
+/** Each LLM evaluator owns the prompt its rule created, and its alignment queue once it has one. */
 export function taggablesFor(
   datasetId: string,
   queueId: string | undefined,
@@ -23,9 +35,7 @@ export function taggablesFor(
     ...(queueId ? [{ type: "queue" as const, id: queueId }] : []),
     ...evaluators.flatMap((evaluator) => [
       { type: "evaluator" as const, id: evaluator.id },
-      ...(evaluator.llm_evaluator
-        ? [{ type: "prompt" as const, id: evaluator.llm_evaluator.prompt_id }]
-        : []),
+      ...ownedBy(evaluator),
     ]),
   ];
 }
@@ -51,7 +61,7 @@ async function tag(api: Api, tagValueId: string, resource: Taggable) {
 }
 
 /**
- * Tags the dataset, triage queue, evaluators and their prompts to the agent, so they appear under
+ * Tags the dataset, triage queue, evaluators and their prompts and alignment queues to the agent, so they appear under
  * it in LangSmith's agent switcher. Returns how many were tagged, or null when tagging is unavailable.
  */
 export async function tagAgentResources(api: Api, datasetId: string): Promise<number | null> {
