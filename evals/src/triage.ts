@@ -56,17 +56,21 @@ async function ensureFeedbackConfig(api: Api) {
   }
 }
 
+export async function findQueue(api: Api): Promise<{ id: string } | undefined> {
+  const queues = await api.get<{ id: string; name: string }[]>("/annotation-queues", {
+    name: QUEUE_NAME,
+  });
+  return queues.find((queue) => queue.name === QUEUE_NAME);
+}
+
 export async function ensureTriage(
   api: Api,
   datasetId: string,
   sessionIds: readonly string[],
 ): Promise<{ queueId: string; ruleIds: string[] }> {
   await ensureFeedbackConfig(api);
-  const queues = await api.get<{ id: string; name: string }[]>("/annotation-queues", {
-    name: QUEUE_NAME,
-  });
   const queueId =
-    queues.find((queue) => queue.name === QUEUE_NAME)?.id ??
+    (await findQueue(api))?.id ??
     (await api.post<{ id: string }>("/annotation-queues", queueBody(datasetId))).id;
 
   const ruleIds: string[] = [];

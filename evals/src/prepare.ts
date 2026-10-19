@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
-import { ask, findDeployment, type Deployment } from "./agent.ts";
+import { ASSISTANT_ID, ask, findDeployment, type Deployment } from "./agent.ts";
 import { createApi, type Api } from "./api.ts";
 import { developmentGap, parseGitHubRepo } from "./branches.ts";
 import { readConfig, type Config } from "./config.ts";
@@ -18,6 +18,7 @@ import {
   type RuleTarget,
 } from "./evaluators.ts";
 import { EXPERIMENTS, runExperiment, waitForScores, type ExperimentResult } from "./experiments.ts";
+import { tagAgentResources } from "./tags.ts";
 import { sendTraffic } from "./traffic.ts";
 import { ensureTriage } from "./triage.ts";
 
@@ -170,6 +171,14 @@ async function main() {
     ]);
     log("triage queue and rules ready");
   }
+
+  const tagged = await tagAgentResources(api, dataset.id);
+  log(
+    tagged === null
+      ? `agent tagging skipped: the workspace has no Agent tag for ${ASSISTANT_ID}`
+      : `tagged ${tagged} resources to agent ${ASSISTANT_ID}`,
+  );
+  manifest.tagged = tagged;
 
   if (steps.has("traffic")) {
     const questions = await readJson<string[]>("dataset/traffic.json");
