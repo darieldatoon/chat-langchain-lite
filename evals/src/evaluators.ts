@@ -362,3 +362,8 @@ export function sharedRule(
     evaluator_id: source.evaluatorId,
   };
 }
+
+/** The backend checks the shared evaluator is a trajectory one only when the rule groups by trajectory. */
+export function sharedTrajectoryRule(sessionId: string, source: EnsureResult): RuleBody {
+  return { ...sharedRule({ kind: "session", sessionId }, source), group_by: "trajectory_id" };
+}

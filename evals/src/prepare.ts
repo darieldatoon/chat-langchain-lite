@@ -13,6 +13,7 @@ import {
   ensureRule,
   resolveJudge,
   sharedRule,
+  sharedTrajectoryRule,
   toneLlmRule,
   toneRule,
   trajectoryRule,
@@ -161,11 +162,17 @@ async function main() {
       // Off until someone turns it on: Jev already scores tone on every trace.
       results.push(await ensureRule(api, target, sharedRule(target, toneLlm, { enabled: false })));
     }
+    const trajectory = await ensureRule(
+      api,
+      { kind: "session", sessionId: production.tracerSessionId },
+      trajectoryRule(production.tracerSessionId, judge),
+    );
     results.push(
+      trajectory,
       await ensureRule(
         api,
-        { kind: "session", sessionId: production.tracerSessionId },
-        trajectoryRule(production.tracerSessionId, judge),
+        { kind: "session", sessionId: development.tracerSessionId },
+        sharedTrajectoryRule(development.tracerSessionId, trajectory),
       ),
     );
     for (const result of results) log(`evaluator ${result.name}: ${result.status}`);

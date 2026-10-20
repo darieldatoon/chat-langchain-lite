@@ -7,6 +7,7 @@ import {
   ensureRule,
   ONLINE_FILTER,
   sharedRule,
+  sharedTrajectoryRule,
   TONE_LLM_RULE_NAME,
   toneLlmRule,
   toneRule,
@@ -119,6 +120,15 @@ describe("sharedRule", () => {
     const target = { kind: "session", sessionId: "s-1" } as const;
     expect((sharedRule(target, source) as any).is_enabled).toBe(true);
     expect((sharedRule(target, source, { enabled: false }) as any).is_enabled).toBe(false);
+  });
+
+  it("keeps the trajectory grouping when sharing a trajectory evaluator", () => {
+    expect(sharedTrajectoryRule("s-2", source)).toMatchObject({
+      session_id: "s-2",
+      filter: ONLINE_FILTER,
+      group_by: "trajectory_id",
+      evaluator_id: "ev-1",
+    });
   });
 
   it("refuses a source rule without an evaluator", () => {
