@@ -30,7 +30,7 @@ const STEPS = ["readiness", "evaluators", "triage", "traffic", "experiments"] as
 type Step = (typeof STEPS)[number];
 
 // Mirrors the agent's output limit, so simulated users can spot answers that ran out of room.
-const AGENT_OUTPUT_LIMIT = 900;
+const AGENT_OUTPUT_LIMIT = 4096;
 const root = new URL("../", import.meta.url);
 
 function log(line: string) {
