@@ -20,5 +20,6 @@ export function fakeApi(respond: (call: Call) => unknown): Api & { calls: Call[]
     post: (path, body) => handle({ method: "POST", path, body }) as never,
     patch: (path, body) => handle({ method: "PATCH", path, body }) as never,
     put: (path, body) => handle({ method: "PUT", path, body }) as never,
+    delete: (path, query) => handle({ method: "DELETE", path, query }) as never,
   };
 }

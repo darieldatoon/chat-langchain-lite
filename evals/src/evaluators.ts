@@ -73,6 +73,36 @@ export const ASSERTIONS_SCHEMA = {
 export const TONE_QUESTION =
   "Does the assistant's final answer read like professional technical documentation, with no emoji, no slang or hype, and product names written in full?";
 
+export const TONE_LLM_RULE_NAME = "professional_tone_llm";
+
+// Deliberately generic: the demo sharpens it in the Evaluator Playground against human labels.
+export const TONE_LLM_PROMPT = `You are reviewing an answer from a documentation assistant for LangChain, LangGraph, LangSmith and Deep Agents.
+
+Decide whether the answer's tone is professional: clear, courteous and suited to technical documentation that developers rely on.
+
+<answer>
+{{answer}}
+</answer>`;
+
+// The alignment queue needs exactly one boolean feedback key.
+export const TONE_LLM_SCHEMA = {
+  title: "Professional_Tone_Score",
+  type: "object",
+  description: "An evaluation of whether the answer's tone is professional.",
+  properties: {
+    comment: {
+      type: "string",
+      description: "Reasoning for the score, quoting any wording that breaks the tone.",
+    },
+    [TONE_LLM_RULE_NAME]: {
+      type: "boolean",
+      description: "TRUE if the answer's tone is professional. FALSE otherwise.",
+    },
+  },
+  required: ["comment", TONE_LLM_RULE_NAME],
+  strict: true,
+};
+
 // openevals TRAJECTORY_ACCURACY_PROMPT (LangSmith's "Trajectory Accuracy" template), in mustache form
 // over the trajectory variable that trajectory rules receive.
 export const TRAJECTORY_ACCURACY_PROMPT = `You are an expert data labeler.
@@ -161,10 +191,10 @@ export function assertionsRule(datasetId: string, judge: JudgeModel): RuleBody {
   };
 }
 
-export function toneRule(target: RuleTarget, gatewaySecret = "LC_GATEWAY_KEY"): RuleBody {
+export function toneRule(datasetId: string, gatewaySecret = "LC_GATEWAY_KEY"): RuleBody {
   return {
     display_name: "professional_tone",
-    ...targetFields(target),
+    dataset_id: datasetId,
     sampling_rate: 1,
     is_enabled: true,
     evaluators: [
@@ -191,10 +221,47 @@ export function toneRule(target: RuleTarget, gatewaySecret = "LC_GATEWAY_KEY"): 
   };
 }
 
-export function citesRule(target: RuleTarget, code: string): RuleBody {
+// The Gateway's gpt-6-luna, serialized the way LangSmith's own model configs are.
+function lunaModel(gatewaySecret = "LC_GATEWAY_KEY") {
+  return {
+    lc: 1,
+    type: "constructor",
+    id: ["langchain", "chat_models", "openai", "ChatOpenAI"],
+    kwargs: {
+      model: "gpt-6-luna",
+      openai_api_base: "https://gateway.smith.langchain.com/openai/v1",
+      openai_api_key: { lc: 1, type: "secret", id: [gatewaySecret] },
+      use_responses_api: true,
+    },
+  };
+}
+
+/** An LLM twin of the Jev tone check, because Jev decision models can't use the alignment flow. */
+export function toneLlmRule(datasetId: string, gatewaySecret = "LC_GATEWAY_KEY"): RuleBody {
+  return {
+    display_name: TONE_LLM_RULE_NAME,
+    dataset_id: datasetId,
+    sampling_rate: 1,
+    is_enabled: true,
+    create_alignment_queue: true,
+    evaluators: [
+      {
+        structured: {
+          model: lunaModel(gatewaySecret),
+          prompt: [["human", TONE_LLM_PROMPT]],
+          schema: TONE_LLM_SCHEMA,
+          template_format: "mustache",
+          variable_mapping: { answer: ANSWER_PATH },
+        },
+      },
+    ],
+  };
+}
+
+export function citesRule(datasetId: string, code: string): RuleBody {
   return {
     display_name: "cites_retrieved_docs",
-    ...targetFields(target),
+    dataset_id: datasetId,
     sampling_rate: 1,
     is_enabled: true,
     code_evaluators: [{ code, language: "javascript" }],
@@ -245,8 +312,15 @@ export async function resolveJudge(api: Api): Promise<JudgeModel> {
 export type EnsureResult = {
   readonly name: string;
   readonly id: string;
+  readonly evaluatorId: string | null;
   readonly status: "created" | "exists";
 };
+
+interface RuleRecord {
+  readonly id: string;
+  readonly display_name: string;
+  readonly evaluator_id?: string | null;
+}
 
 /**
  * Creates a rule only if its target has none with the same display name. Existing rules are left
@@ -259,9 +333,37 @@ export async function ensureRule(
 ): Promise<EnsureResult> {
   const query =
     target.kind === "dataset" ? { dataset_id: target.datasetId } : { session_id: target.sessionId };
-  const existing = await api.get<{ id: string; display_name: string }[]>("/runs/rules", query);
+  const existing = await api.get<RuleRecord[]>("/runs/rules", query);
   const match = existing.find((rule) => rule.display_name === body.display_name);
-  if (match) return { name: body.display_name, id: match.id, status: "exists" };
-  const created = await api.post<{ id: string }>("/runs/rules", body);
-  return { name: body.display_name, id: created.id, status: "created" };
+  const rule = match ?? (await api.post<RuleRecord>("/runs/rules", body));
+  return {
+    name: body.display_name,
+    id: rule.id,
+    evaluatorId: rule.evaluator_id ?? null,
+    status: match ? "exists" : "created",
+  };
+}
+
+/**
+ * Attaches an evaluator that already exists instead of defining a new one, so every target shares
+ * one prompt, alignment queue and reference dataset, and an edit reaches them all.
+ */
+export function sharedRule(
+  target: RuleTarget,
+  source: EnsureResult,
+  { enabled = true }: { readonly enabled?: boolean } = {},
+): RuleBody {
+  if (!source.evaluatorId) throw new Error(`Rule ${source.name} has no evaluator to share.`);
+  return {
+    display_name: source.name,
+    ...targetFields(target),
+    sampling_rate: 1,
+    is_enabled: enabled,
+    evaluator_id: source.evaluatorId,
+  };
+}
+
+/** The backend checks the shared evaluator is a trajectory one only when the rule groups by trajectory. */
+export function sharedTrajectoryRule(sessionId: string, source: EnsureResult): RuleBody {
+  return { ...sharedRule({ kind: "session", sessionId }, source), group_by: "trajectory_id" };
 }
