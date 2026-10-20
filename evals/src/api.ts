@@ -5,6 +5,10 @@ export interface Api {
   post<T>(path: string, body: unknown): Promise<T>;
   patch<T>(path: string, body: unknown): Promise<T>;
   put<T>(path: string, body: unknown): Promise<T>;
+  delete<T>(
+    path: string,
+    query?: Record<string, string | number | boolean | undefined>,
+  ): Promise<T>;
 }
 
 export class ApiError extends Error {
@@ -53,5 +57,6 @@ export function createApi(options: {
     post: (path, body) => request("POST", path, body),
     patch: (path, body) => request("PATCH", path, body),
     put: (path, body) => request("PUT", path, body),
+    delete: (path, query) => request("DELETE", path, undefined, query),
   };
 }

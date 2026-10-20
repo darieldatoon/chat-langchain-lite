@@ -37,6 +37,14 @@ depends = ["//agent:test", "//web:test", "//evals:test"]
 description = "Seed the dataset, create evaluators, send traffic and pre-run experiments"
 run = "mise run //evals:prepare"
 
+[tasks."demo:install"]
+description = "Set up, deploy both environments, publish Pages and prepare the demo: [--redeploy]"
+run = ["mise run setup", "mise run //evals:install"]
+
+[tasks."demo:uninstall"]
+description = "List everything the demo created in LANGSMITH_WORKSPACE_ID; --yes deletes it"
+run = "mise run //evals:uninstall"
+
 [tasks.deploy]
 description = "Deploy the agent: mise run deploy -- <development|production>"
 run = "mise run //agent:deploy"

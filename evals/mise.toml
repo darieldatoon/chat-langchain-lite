@@ -2,6 +2,14 @@
 description = "Prepare a workspace: [--only <steps>] [--split demo] [--roles <roles>] [--skip-wait]"
 run = "node --env-file-if-exists=../agent/.env src/prepare.ts"
 
+[tasks.install]
+description = "Deploy both environments through GitHub Actions, publish Pages, then prepare: [--redeploy]"
+run = "node --env-file-if-exists=../agent/.env src/install.ts"
+
+[tasks.uninstall]
+description = "List everything the demo created in the workspace; --yes deletes it"
+run = "node --env-file-if-exists=../agent/.env src/uninstall.ts"
+
 [tasks.check]
 description = "Format check, lint and typecheck"
 run = ["pnpm run fmt:check", "pnpm run lint", "pnpm run typecheck"]

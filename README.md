@@ -51,6 +51,8 @@ Locally, `mda dev` doesn't enforce sign-in, so any value works on the sign-in pa
 | `mise run deploy -- development` | Deploy the `development` environment to `LANGSMITH_WORKSPACE_ID` |
 | `mise run deploy -- production` | Deploy the `production` environment |
 | `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators and triage queue, send sample traffic, and pre-run the experiments |
+| `mise run demo:install` | Set up, deploy both environments through GitHub Actions, publish Pages, then run `demo:prepare` |
+| `mise run demo:uninstall` | List everything the demo created in the workspace. `--yes` deletes it |
 
 ## Evals
 
@@ -80,6 +82,8 @@ The deployment type is fixed when a deployment is first created. Changing it lat
 
 ## Fork setup
 
+`mise run demo:install` does steps 2–5 against your `origin` fork. It needs `gh` signed in, `agent/.env` filled in, and both branches on the fork (step 1). It sets the repo secrets from `agent/.env` only when they're missing, skips environments that are already deployed (`--redeploy` to deploy again), then runs `demo:prepare`. To do it by hand:
+
 1. Fork this repo with **Copy the `main` branch only** unchecked, so you get `development` too. For a fork that only has `main`, add the original repo as the `upstream` remote and run `git fetch upstream development && git push origin upstream/development:development`.
 2. In **Settings → Secrets and variables → Actions**, add:
 
@@ -94,3 +98,7 @@ The deployment type is fixed when a deployment is first created. Changing it lat
 5. Run **Actions → Pages**. Your app is at `https://<you>.github.io/<repo>/`.
 
 Sign in with your LangSmith personal access token. It stays in the browser tab and is sent only to your agent and to the LangSmith API.
+
+## Uninstall
+
+`mise run demo:uninstall` lists everything the demo created in the workspace, with what each evaluator is attached to. `mise run demo:uninstall -- --yes` deletes it in dependency order, re-checks, and lists what to remove by hand on GitHub and locally. It keeps the `LC_GATEWAY_KEY` workspace secret and the `user_score` feedback config, which other apps share.
