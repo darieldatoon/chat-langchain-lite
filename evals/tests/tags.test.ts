@@ -32,7 +32,8 @@ describe("taggablesFor", () => {
 describe("tagAgentResources", () => {
   it("tags the dataset before listing the agent's evaluators", async () => {
     const api = fakeApi(({ method, path }) => {
-      if (path === "/agents/chat-langchain-lite") return { tag_value_id: "tv-1" };
+      if (path === "/agents/chat-langchain-lite")
+        return { tag_value_id: "tv-1", environments: [{ tracer_session_id: "s-1" }] };
       if (path === "/platform/evaluators")
         return { evaluators: [{ id: "ev-1", llm_evaluator: { prompt_id: "p-1" } }] };
       if (path === "/annotation-queues") return [{ id: "q-1", name: QUEUE_NAME }];
@@ -40,7 +41,7 @@ describe("tagAgentResources", () => {
       throw new Error(`unexpected ${method} ${path}`);
     });
 
-    expect(await tagAgentResources(api, "ds-1")).toBe(4);
+    expect(await tagAgentResources(api, "ds-1")).toBe(5);
     const order = api.calls.map((call) => `${call.method} ${call.path}`);
     expect(order.indexOf("POST /workspaces/current/taggings")).toBeLessThan(
       order.indexOf("GET /platform/evaluators"),
@@ -49,7 +50,7 @@ describe("tagAgentResources", () => {
       .filter((call) => call.method === "POST")
       .map((call) => call.body as { resource_type: string; resource_id: string });
     expect(new Set(tagged.map((body) => `${body.resource_type}:${body.resource_id}`))).toEqual(
-      new Set(["dataset:ds-1", "queue:q-1", "evaluator:ev-1", "prompt:p-1"]),
+      new Set(["dataset:ds-1", "queue:q-1", "project:s-1", "evaluator:ev-1", "prompt:p-1"]),
     );
   });
 

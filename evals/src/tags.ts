@@ -1,9 +1,9 @@
-import { ASSISTANT_ID } from "./agent.ts";
-import { ApiError, type Api } from "./api.ts";
+import { ASSISTANT_ID, findAgent } from "./agent.ts";
+import type { Api } from "./api.ts";
 import { findQueue } from "./triage.ts";
 
 export interface Taggable {
-  readonly type: "dataset" | "queue" | "evaluator" | "prompt";
+  readonly type: "dataset" | "queue" | "evaluator" | "prompt" | "project";
   readonly id: string;
 }
 
@@ -29,26 +29,17 @@ export function taggablesFor(
   datasetId: string,
   queueId: string | undefined,
   evaluators: readonly EvaluatorRecord[],
+  sessionIds: readonly string[] = [],
 ): Taggable[] {
   return [
     { type: "dataset", id: datasetId },
     ...(queueId ? [{ type: "queue" as const, id: queueId }] : []),
+    ...sessionIds.map((id) => ({ type: "project" as const, id })),
     ...evaluators.flatMap((evaluator) => [
       { type: "evaluator" as const, id: evaluator.id },
       ...ownedBy(evaluator),
     ]),
   ];
-}
-
-/** Null when the workspace has no Agent tag for this agent (agent views not enabled yet). */
-export async function agentTagValueId(api: Api): Promise<string | null> {
-  try {
-    const agent = await api.get<{ tag_value_id: string | null }>(`/agents/${ASSISTANT_ID}`);
-    return agent.tag_value_id;
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null;
-    throw error;
-  }
 }
 
 async function tag(api: Api, tagValueId: string, resource: Taggable) {
@@ -61,11 +52,12 @@ async function tag(api: Api, tagValueId: string, resource: Taggable) {
 }
 
 /**
- * Tags the dataset, triage queue, evaluators and their prompts and alignment queues to the agent, so they appear under
+ * Tags the dataset, triage queue, tracing projects, evaluators and their prompts and alignment queues to the agent, so they appear under
  * it in LangSmith's agent switcher. Returns how many were tagged, or null when tagging is unavailable.
  */
 export async function tagAgentResources(api: Api, datasetId: string): Promise<number | null> {
-  const tagValueId = await agentTagValueId(api);
+  const agent = await findAgent(api);
+  const tagValueId = agent?.tag_value_id;
   if (!tagValueId) return null;
   // agent_id lists evaluators on the agent's tracing projects and tagged datasets: tag the dataset first.
   await tag(api, tagValueId, { type: "dataset", id: datasetId });
@@ -76,7 +68,9 @@ export async function tagAgentResources(api: Api, datasetId: string): Promise<nu
     }),
     findQueue(api),
   ]);
-  const resources = taggablesFor(datasetId, queue?.id, evaluators);
+  // Evaluator pages in the agent view only list a tracing project's rules once the project itself is tagged.
+  const sessionIds = (agent.environments ?? []).map((environment) => environment.tracer_session_id);
+  const resources = taggablesFor(datasetId, queue?.id, evaluators, sessionIds);
   for (const resource of resources) await tag(api, tagValueId, resource);
   return resources.length;
 }

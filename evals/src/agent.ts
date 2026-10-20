@@ -1,7 +1,22 @@
-import type { Api } from "./api.ts";
+import { ApiError, type Api } from "./api.ts";
 
 export const ASSISTANT_ID = "chat-langchain-lite";
 export type Environment = "production" | "development";
+
+export interface AgentRecord {
+  readonly tag_value_id: string | null;
+  readonly environments?: readonly { readonly tracer_session_id: string }[];
+}
+
+/** Null when the workspace has no Agent for this id (not deployed, or agent views not enabled yet). */
+export async function findAgent(api: Api): Promise<AgentRecord | null> {
+  try {
+    return await api.get<AgentRecord>(`/agents/${ASSISTANT_ID}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
 
 export interface Deployment {
   readonly environment: Environment;
