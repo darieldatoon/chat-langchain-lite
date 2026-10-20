@@ -3,7 +3,7 @@ description = "Prepare a workspace: [--only <steps>] [--split demo] [--roles <ro
 run = "node --env-file-if-exists=../agent/.env src/prepare.ts"
 
 [tasks.install]
-description = "Deploy both environments through GitHub Actions, publish Pages, then prepare: [--redeploy]"
+description = "Create both environments as GitHub-connected deployments, publish Pages, then prepare: [--redeploy] [--replace]"
 run = "node --env-file-if-exists=../agent/.env src/install.ts"
 
 [tasks.uninstall]

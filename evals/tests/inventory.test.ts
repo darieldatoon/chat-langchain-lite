@@ -132,3 +132,63 @@ describe("discoverInventory", () => {
     expect(api.calls.some((call) => call.method !== "GET")).toBe(false);
   });
 });
+
+describe("discoverInventory deployments", () => {
+  const discover = (repos: Record<string, { tags: string[] }>) => {
+    const api = fakeApi(({ path, query }) => {
+      const q = (query ?? {}) as Record<string, unknown>;
+      if (path === "/v2/deployments")
+        return q.agent_environment === "development"
+          ? {
+              resources: [
+                { id: "dev", name: "a-chat-lan-development-1" },
+                { id: "pr-7", name: "a-chat-lan-development-1-pr-7", is_preview: true },
+              ],
+            }
+          : { resources: [] };
+      const handle = path.startsWith("/repos/-/") ? path.slice("/repos/-/".length) : null;
+      if (handle && repos[handle])
+        return { repo: { id: `hub-${handle}`, repo_type: "agent", tags: repos[handle].tags } };
+      if (handle || path === "/agents/chat-langchain-lite") throw new ApiError(404, path, "");
+      if (path === "/platform/evaluators") return { evaluators: [] };
+      if (path === "/repos/") return { repos: [] };
+      if (["/sessions", "/datasets", "/annotation-queues", "/feedback-configs"].includes(path))
+        return [];
+      throw new Error(`unexpected ${path}`);
+    });
+    return discoverInventory(api, api);
+  };
+
+  it("leaves previews and the build's own Context Hub repo to the deployment", async () => {
+    const inventory = await discover({
+      "a-chat-lan-development-1": { tags: ["managed-deepagents", "managed-deepagents:github"] },
+    });
+    expect(inventory.deployments).toEqual([
+      expect.objectContaining({ id: "dev", removal: expect.anything() }),
+      expect.objectContaining({ id: "pr-7", removedWith: "the development deployment" }),
+    ]);
+    expect(inventory.contextHubRepos).toEqual([
+      expect.objectContaining({
+        name: "a-chat-lan-development-1",
+        removedWith: "the development deployment",
+      }),
+    ]);
+  });
+
+  it("skips a same-name repo the build didn't create, and deletes legacy repos as directories", async () => {
+    const inventory = await discover({
+      "a-chat-lan-development-1": { tags: [] },
+      "chat-langchain-lite": { tags: ["managed-deepagents"] },
+    });
+    expect(inventory.contextHubRepos).toEqual([
+      expect.objectContaining({
+        name: "chat-langchain-lite",
+        removal: {
+          api: "smith",
+          path: "/platform/hub/repos/-/chat-langchain-lite/directories",
+          query: { repo_type: "agent" },
+        },
+      }),
+    ]);
+  });
+});

@@ -30,6 +30,8 @@ interface DeploymentRecord {
   readonly active_revision_id: string | null;
   readonly latest_revision_id: string | null;
   readonly tracer_session_id: string | null;
+  readonly url?: string | null;
+  readonly is_preview?: boolean;
   readonly source_config: { readonly custom_url: string | null };
 }
 
@@ -38,12 +40,15 @@ export async function findDeployment(hostApi: Api, environment: Environment): Pr
     "/v2/deployments",
     { agent_id: ASSISTANT_ID, agent_environment: environment },
   );
-  const [record] = Array.isArray(response) ? response : (response.resources ?? []);
-  const url = record?.source_config.custom_url;
+  // Preview deployments share the development environment.
+  const record = (Array.isArray(response) ? response : (response.resources ?? [])).find(
+    (candidate) => !candidate.is_preview,
+  );
+  const url = record?.url ?? record?.source_config.custom_url;
   const revisionId = record?.active_revision_id ?? record?.latest_revision_id;
   if (!record || !url || !revisionId || !record.tracer_session_id) {
     throw new Error(
-      `No deployed ${environment} environment for agent ${ASSISTANT_ID}. Run its Deploy agent workflow first.`,
+      `No deployed ${environment} environment for agent ${ASSISTANT_ID}. Run mise run demo:install first.`,
     );
   }
   return { environment, url, revisionId, tracerSessionId: record.tracer_session_id };

@@ -9,7 +9,3 @@ run = ["pnpm run fmt:check", "pnpm run lint", "pnpm run typecheck"]
 [tasks.test]
 description = "Unit tests"
 run = "pnpm run test"
-
-[tasks.deploy]
-description = "Deploy one agent environment to LANGSMITH_WORKSPACE_ID"
-run = "node ../scripts/deploy-agent.mjs"

@@ -48,10 +48,8 @@ Locally, `mda dev` doesn't enforce sign-in, so any value works on the sign-in pa
 | `mise run dev` | Run the agent and the web app locally |
 | `mise run check` | Format check, lint and typecheck |
 | `mise run test` | Unit tests |
-| `mise run deploy -- development` | Deploy the `development` environment to `LANGSMITH_WORKSPACE_ID` |
-| `mise run deploy -- production` | Deploy the `production` environment |
 | `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators and triage queue, send sample traffic, and pre-run the experiments |
-| `mise run demo:install` | Set up, deploy both environments through GitHub Actions, publish Pages, then run `demo:prepare` |
+| `mise run demo:install` | Set up, create both environments as GitHub-connected deployments, turn on previews and Engine fix verification, publish Pages, then run `demo:prepare` |
 | `mise run demo:uninstall` | List everything the demo created in the workspace. `--yes` deletes it |
 
 ## Evals
@@ -67,37 +65,49 @@ Use `--only <steps>`, `--split demo` and `--roles <roles>` to run part of it. It
 
 ## How deploys work
 
-One agent, `chat-langchain-lite`, per workspace, with two environments:
+One agent, `chat-langchain-lite`, per workspace, with two environments. Both are GitHub-connected deployments: LangSmith rebuilds `agent/` from the environment's branch on every push.
 
-| Environment | Deploys from | Deployment type |
+| Environment | Builds from | Deployment type |
 |---|---|---|
-| `production` | `main` | `PRODUCTION_DEPLOYMENT_TYPE` (default `dev`) |
+| `production` | `main` | `PRODUCTION_DEPLOYMENT_TYPE` when install creates it (default `dev`) |
 | `development` | `development` | `dev` |
 
-GitHub Actions runs CI, then `mda deploy`, on every push to those branches that changes `agent/`.
+LangSmith builds whether or not CI passed, so `main` and `development` are protected: merging a pull request needs a passing `check`. Admins can still push directly.
+
+Each build syncs `agent/instructions.md` and `agent/skills/` to a Context Hub repo named after the deployment, with git winning. The Gateway key and the CORS allow-list are deployment secrets, which `mise run demo:install` sets.
 
 `development` runs one commit ahead of `main` on purpose, so the demo has a candidate to compare against production. To release it, open a pull request from `development` into `main` and merge it with a merge commit. A squash merge leaves `development` looking ahead with nothing new. After anything lands on `main` directly, merge `main` back into `development`.
+
+A pull request into `development` labeled `preview` gets its own preview deployment. It's torn down when the pull request closes, or after 72 idle hours. Engine labels its fix pull requests this way, replays the issue's production traces against `development` and the preview, and shows on its board whether the fix worked.
 
 The deployment type is fixed when a deployment is first created. Changing it later means deleting and recreating the deployment.
 
 ## Fork setup
 
-`mise run demo:install` does steps 2–5 against your `origin` fork. It needs `gh` signed in, `agent/.env` filled in, and both branches on the fork (step 1). It sets the repo secrets from `agent/.env` only when they're missing, skips environments that are already deployed (`--redeploy` to deploy again), then runs `demo:prepare`. To do it by hand:
-
 1. Fork this repo with **Copy the `main` branch only** unchecked, so you get `development` too. For a fork that only has `main`, add the original repo as the `upstream` remote and run `git fetch upstream development && git push origin upstream/development:development`.
-2. In **Settings → Secrets and variables → Actions**, add:
+2. In LangSmith, start a new deployment from GitHub and give LangSmith's GitHub App access to your fork. You can cancel before creating the deployment.
+3. Run `mise run demo:install`. It needs `gh` signed in and `agent/.env` filled in. It:
+   - sets the `LANGSMITH_API_KEY` repo secret if it's missing, and the `LANGSMITH_WORKSPACE_ID` variable
+   - protects `main` and `development`, and turns on GitHub Pages
+   - creates both environments as GitHub-connected deployments and waits for their first build
+   - sets the `VITE_AGENT_URL_DEVELOPMENT` and `VITE_AGENT_URL_PRODUCTION` variables, turns on previews for `development`, and points an existing Engine board at it
+   - publishes Pages and runs `demo:prepare`
 
-   | Kind | Name | Value |
-   |---|---|---|
-   | Secret | `LANGSMITH_API_KEY` | Your LangSmith personal access token |
-   | Secret | `LANGSMITH_GATEWAY_API_KEY` | Your `LC_GATEWAY_KEY` |
-   | Variable | `LANGSMITH_WORKSPACE_ID` | Your workspace id |
-
-3. In **Settings → Pages**, set the source to **GitHub Actions**.
-4. In **Actions → Deploy agent**, run the workflow with the `development` branch selected, then with `main`. Copy each Agent Server URL from the run summary into the `VITE_AGENT_URL_DEVELOPMENT` and `VITE_AGENT_URL_PRODUCTION` variables.
-5. Run **Actions → Pages**. Your app is at `https://<you>.github.io/<repo>/`.
+   Re-running skips what's done; `--redeploy` rebuilds both environments. A workspace whose environments were deployed with the mda CLI needs `--replace` once: it deletes them and creates them again from GitHub, keeping their tracing projects and rules.
+4. Your app is at `https://<you>.github.io/<repo>/`.
 
 Sign in with your LangSmith personal access token. It stays in the browser tab and is sent only to your agent and to the LangSmith API.
+
+### Engine fix verification
+
+Install doesn't create the Engine board, because creating one starts a paid scan. To set it up:
+
+1. Enable Engine on the `chat-langchain-lite-production` tracing project.
+2. Install Engine's GitHub App on your fork. It's a separate app from the deployments' one, and needs write access to checks, issues and pull requests.
+3. Add the fork as the board's first repo, with subdirectory `agent` and base branch `development`.
+4. Re-run `mise run demo:install`. It points the board at `development` and turns on fix verification.
+
+Fix verification needs the `enable_engine_issue_validation` flag on the workspace.
 
 ## Uninstall
 

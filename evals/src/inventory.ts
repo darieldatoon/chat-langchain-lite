@@ -5,8 +5,10 @@ import { QUEUE_NAME } from "./triage.ts";
 
 const ENVIRONMENTS = ["local", "development", "staging", "production"] as const;
 const DEPLOYED_ENVIRONMENTS = ["development", "production"] as const;
-// mda names production's Context Hub repo after the agent alone, and the others with an -<environment> suffix.
-const CONTEXT_HUB_REPOS = [ASSISTANT_ID, `${ASSISTANT_ID}-development`];
+// The CLI deploys this demo used to run named Context Hub repos after the agent; GitHub builds name them after the deployment.
+const LEGACY_CONTEXT_HUB_REPOS = [ASSISTANT_ID, `${ASSISTANT_ID}-development`];
+// Deleting a GitHub-sourced deployment also deletes its Context Hub repo when the build tagged it this way.
+const GITHUB_SOURCED_HUB_TAG = "managed-deepagents:github";
 // LangSmith names what it creates for an evaluator after the rule's parent: "Evaluator: <dataset or project>:<rule> …".
 const EVALUATOR_RESOURCE_PREFIX = `Evaluator: ${ASSISTANT_ID}`;
 const EVAL_PROMPT_PREFIX = `eval_${ASSISTANT_ID.replaceAll("-", "_")}_`;
@@ -185,36 +187,59 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
   const agent = await findAgent(api);
 
   const deployments: Item[] = [];
+  // Context Hub repo handle (= deployment name) → its environment; null for the legacy CLI-named repos.
+  const hubOwners = new Map<string, string | null>(LEGACY_CONTEXT_HUB_REPOS.map((h) => [h, null]));
   for (const environment of DEPLOYED_ENVIRONMENTS) {
-    const response = await hostApi.get<{ resources?: { id: string; name: string }[] }>(
-      "/v2/deployments",
-      { agent_id: ASSISTANT_ID, agent_environment: environment },
-    );
-    for (const record of response.resources ?? [])
-      deployments.push({
-        id: record.id,
-        name: record.name,
-        detail: `${environment}; its threads, secrets and build go with it`,
-        removal: {
-          api: "host",
-          path: `/v2/deployments/${record.id}`,
-          query: { delete_tracing_project: false },
-        },
-      });
+    const response = await hostApi.get<{
+      resources?: { id: string; name: string; is_preview?: boolean }[];
+    }>("/v2/deployments", { agent_id: ASSISTANT_ID, agent_environment: environment });
+    for (const record of response.resources ?? []) {
+      if (!record.is_preview) hubOwners.set(record.name, environment);
+      deployments.push(
+        record.is_preview
+          ? { id: record.id, name: record.name, removedWith: `the ${environment} deployment` }
+          : {
+              id: record.id,
+              name: record.name,
+              detail: `${environment}; its threads, secrets${environment === "development" ? ", previews" : ""} and build go with it`,
+              removal: {
+                api: "host",
+                path: `/v2/deployments/${record.id}`,
+                query: { delete_tracing_project: false },
+              },
+            },
+      );
+    }
   }
 
   const contextHubRepos: Item[] = [];
-  for (const handle of CONTEXT_HUB_REPOS) {
+  for (const [handle, environment] of hubOwners) {
     const found = await orNull(
-      api.get<{ repo: { id: string; repo_type: string } }>(`/repos/-/${handle}`),
+      api.get<{ repo: { id: string; repo_type: string; tags?: string[] } }>(`/repos/-/${handle}`),
     );
-    if (found?.repo.repo_type === "agent")
-      contextHubRepos.push({
-        id: found.repo.id,
-        name: handle,
-        detail: "instructions.md and the mda deploy manifest; not removed with the agent",
-        removal: { api: "smith", path: `/repos/-/${handle}` },
-      });
+    if (found?.repo.repo_type !== "agent") continue;
+    if (environment !== null) {
+      // MDA leaves a same-name repo it didn't create alone, and so does this.
+      if (found.repo.tags?.includes(GITHUB_SOURCED_HUB_TAG))
+        contextHubRepos.push({
+          id: found.repo.id,
+          name: handle,
+          detail: "instructions.md and skills synced from git on each build",
+          removedWith: `the ${environment} deployment`,
+        });
+      continue;
+    }
+    contextHubRepos.push({
+      id: found.repo.id,
+      name: handle,
+      detail: "from the old mda CLI deploys; nothing syncs it now",
+      // The plain repo delete leaves the directory's file repos behind.
+      removal: {
+        api: "smith",
+        path: `/platform/hub/repos/-/${handle}/directories`,
+        query: { repo_type: "agent" },
+      },
+    });
   }
 
   const projectsById = new Map<string, Item>();

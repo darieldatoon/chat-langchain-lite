@@ -15,7 +15,7 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - **`thinking` stays disabled** on the model. `agent/tests/model.test.ts` enforces it.
 - **The assistant id `chat-langchain-lite`** appears in `agent/agent.ts`, `web/src/config.ts` and `evals/src/agent.ts`. Change all three or none.
 - **The `Assertions (auto-attached)` rule name** in `evals/src/evaluators.ts` must stay exact. Adding assertion examples from an annotation queue creates a duplicate judge under any other name.
-- **`MDA_CORS_ORIGINS` must include `https://smith.langchain.com`.** It replaces the deployment's default CORS allow-list; without it the LangSmith UI (Deployments, Studio) can't reach the agent.
+- **The deployments' CORS lists must include `https://smith.langchain.com`.** `corsOrigins` in `evals/src/deployments.ts` sets both `MDA_CORS_ORIGINS` and `CORS_ALLOW_ORIGINS`. They replace the default allow-list, and GitHub builds don't derive `CORS_ALLOW_ORIGINS` the way `mda deploy` did; without it the LangSmith UI (Deployments, Studio) can't reach the agent.
 - **No `[env]` defaults in the root `mise.toml`.** mise env overrides CI's variables.
 - **Secrets live only in `agent/.env`.** Never add keys to Vite env (`VITE_*` values are public) or commit them.
 
@@ -25,4 +25,5 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - `agent/identity.ts`: PAT auth; deployments admit members of their workspace only.
 - `web/src/chat/turns.ts`: messages → render-ready turns (pure, tested).
 - `web/src/components/`: chat components copied from LangSmith's design system; keep upstream edits minimal.
+- `evals/src/install.ts`: creates both environments as GitHub-connected deployments, turns on previews for `development` and points the Engine board at it.
 - `evals/`: the prepare step (`src/prepare.ts`), the seed dataset and the hosted JavaScript evaluator. `evals/evaluators/cites-retrieved-docs.js` runs in LangSmith's sandbox: no imports, every helper inside `performEval`.

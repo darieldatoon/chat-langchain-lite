@@ -17,7 +17,7 @@ export const contextSchema = z.object({ eval_model: z.enum(MODEL_CHOICES).option
 // A factory, so the model is chosen per run and summarization inherits it too.
 export function agent(runtime: ManagedServerRuntime) {
   return defineDeepAgent({
-    // Also the assistant id, Context Hub repo and tracing project prefix; the web app hardcodes it.
+    // Also the assistant id and tracing project prefix; the web app hardcodes it.
     name: "chat-langchain-lite",
     model: createModel(process.env, chooseModel(runtime.executionRuntime?.context?.eval_model)),
     contextSchema,
