@@ -201,7 +201,14 @@ function EmptyState({
       </Text>
       <div className="flex flex-wrap justify-center gap-space-2">
         {STARTERS.map((starter) => (
-          <Button key={starter} variant="outlined" size="sm" onClick={() => onPick(starter)}>
+          <Button
+            key={starter}
+            variant="outlined"
+            size="sm"
+            // Button is one fixed-height line; long starters must wrap instead of overflowing.
+            className="h-auto min-h-6 max-w-full whitespace-normal py-space-1"
+            onClick={() => onPick(starter)}
+          >
             {starter}
           </Button>
         ))}
