@@ -3,31 +3,30 @@ import { describe, expect, it } from "vitest";
 import {
   corsOrigins,
   createBody,
+  deploymentSecrets,
   findAgentDeployment,
   findGithubSource,
+  mergeSecrets,
   revisionState,
   waitUntilDeployed,
 } from "../src/deployments.ts";
 import { fakeApi } from "./fake-api.ts";
 
 const source = { integrationId: "int-1", repoUrl: "https://github.com/me/chat-langchain-lite" };
+const signIn = { organizationId: "org-1", clientId: "lsc_1" };
 
 describe("createBody", () => {
   it("binds the deployment to the agent environment and builds its branch's agent/ on push", () => {
-    const body = createBody("development", source, {
-      deploymentType: "dev",
-      gatewayKey: "g",
-      cors: corsOrigins("Me"),
-    });
+    const body = createBody("development", source, { deploymentType: "dev", secrets: [] });
     expect(body.agent).toEqual({ agent_id: "chat-langchain-lite", environment: "development" });
     expect(body.source_config).toMatchObject({ integration_id: "int-1", build_on_push: true });
     expect(body.source_revision_config).toEqual({
       repo_ref: "development",
       langgraph_config_path: "agent",
     });
-    expect(
-      createBody("production", source, { deploymentType: "prod", gatewayKey: "g", cors: "" }),
-    ).toMatchObject({ source_revision_config: { repo_ref: "main" } });
+    expect(createBody("production", source, { deploymentType: "prod", secrets: [] })).toMatchObject(
+      { source_revision_config: { repo_ref: "main" } },
+    );
   });
 
   it("sets both CORS lists, keeping the LangSmith UI and the fork's Pages site", () => {
@@ -37,10 +36,47 @@ describe("createBody", () => {
       "https://me.github.io",
       "http://localhost:5173",
     ]);
-    const names = createBody("production", source, { deploymentType: "dev", gatewayKey: "g", cors })
-      .secrets.filter((secret) => secret.value === cors)
+    const names = deploymentSecrets({ gatewayKey: "g", cors, signIn })
+      .filter((secret) => secret.value === cors)
       .map((secret) => secret.name);
     expect(names).toEqual(["MDA_CORS_ORIGINS", "CORS_ALLOW_ORIGINS"]);
+  });
+});
+
+describe("deploymentSecrets", () => {
+  it("gives the agent the org and OAuth app it admits, leaving the client id out until it exists", () => {
+    const names = (clientId: string | null) =>
+      deploymentSecrets({ gatewayKey: "g", cors: "", signIn: { ...signIn, clientId } }).map(
+        (secret) => secret.name,
+      );
+    expect(names("lsc_1")).toEqual(
+      expect.arrayContaining(["ALLOWED_ORGANIZATION_ID", "OAUTH_CLIENT_ID"]),
+    );
+    expect(names(null)).not.toContain("OAUTH_CLIENT_ID");
+  });
+});
+
+describe("mergeSecrets", () => {
+  const current = [
+    { name: "MDA_INGRESS_SECRET", value: "minted" },
+    { name: "OAUTH_CLIENT_ID", value: "lsc_old" },
+  ];
+
+  it("is null when every desired secret already has its value", () => {
+    expect(mergeSecrets(current, [{ name: "OAUTH_CLIENT_ID", value: "lsc_old" }])).toBeNull();
+  });
+
+  it("updates and adds secrets while keeping the ones the platform minted", () => {
+    expect(
+      mergeSecrets(current, [
+        { name: "OAUTH_CLIENT_ID", value: "lsc_new" },
+        { name: "ALLOWED_ORGANIZATION_ID", value: "org-1" },
+      ]),
+    ).toEqual([
+      { name: "MDA_INGRESS_SECRET", value: "minted" },
+      { name: "OAUTH_CLIENT_ID", value: "lsc_new" },
+      { name: "ALLOWED_ORGANIZATION_ID", value: "org-1" },
+    ]);
   });
 });
 

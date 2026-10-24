@@ -1,4 +1,4 @@
-// Browser calls to the LangSmith API, authenticated with the user's own PAT (verified CORS-safe in Phase 0).
+// Browser calls to the LangSmith API, authenticated as the signed-in user (verified CORS-safe in Phase 0).
 export const LANGSMITH_API_URL = "https://api.smith.langchain.com";
 export const LANGSMITH_APP_URL = "https://smith.langchain.com";
 
@@ -11,8 +11,8 @@ export interface FeedbackInput {
 }
 
 interface Deps {
+  /** Adds the user's credential; see apiFetch. */
   readonly fetchFn: typeof fetch;
-  readonly headers: Record<string, string>;
 }
 
 async function json<T>(response: Response): Promise<T> {
@@ -22,7 +22,7 @@ async function json<T>(response: Response): Promise<T> {
 
 /** Creates the feedback row, or updates it when the user changes their vote or adds a comment. */
 export async function saveFeedback(
-  { fetchFn, headers }: Deps,
+  { fetchFn }: Deps,
   input: FeedbackInput,
   existingId?: string,
 ): Promise<string> {
@@ -30,12 +30,12 @@ export async function saveFeedback(
   const response = existingId
     ? await fetchFn(`${LANGSMITH_API_URL}/api/v1/feedback/${existingId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...headers },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
     : await fetchFn(`${LANGSMITH_API_URL}/api/v1/feedback`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...body, run_id: input.runId, key: FEEDBACK_KEY }),
       });
   const saved = await json<{ id: string }>(response);
@@ -43,14 +43,11 @@ export async function saveFeedback(
 }
 
 export async function findProjectId(
-  { fetchFn, headers }: Deps,
+  { fetchFn }: Deps,
   projectName: string,
 ): Promise<string | null> {
   const response = await fetchFn(
     `${LANGSMITH_API_URL}/api/v1/sessions?name=${encodeURIComponent(projectName)}`,
-    {
-      headers,
-    },
   );
   const projects = await json<Array<{ id: string }>>(response);
   return projects[0]?.id ?? null;
