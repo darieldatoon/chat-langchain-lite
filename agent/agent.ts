@@ -3,6 +3,7 @@ import { modelCallLimitMiddleware } from "langchain";
 import { defineDeepAgent, type ManagedServerRuntime } from "managed-deepagents";
 import { z } from "zod";
 
+import { accessMiddleware, accessPolicy } from "./access.js";
 import { chooseModel, createModel, MODEL_CHOICES } from "./model.js";
 
 // Docs searches must stay in the root trace, where evaluators read them; the built-in
@@ -21,6 +22,9 @@ export function agent(runtime: ManagedServerRuntime) {
     name: "chat-langchain-lite",
     model: createModel(process.env, chooseModel(runtime.executionRuntime?.context?.eval_model)),
     contextSchema,
-    middleware: [modelCallLimitMiddleware({ runLimit: 25, exitBehavior: "end" })],
+    middleware: [
+      accessMiddleware(accessPolicy(process.env)),
+      modelCallLimitMiddleware({ runLimit: 25, exitBehavior: "end" }),
+    ],
   });
 }

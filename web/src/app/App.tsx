@@ -1,18 +1,14 @@
 import { Banner } from "@langchain/macaw-components/Banner";
-import { useState } from "react";
 
-import { clearPat, loadPat, savePat } from "../auth/pat";
 import { SignIn } from "../auth/SignIn";
+import { useSession } from "../auth/useSession";
 import { ChatShell } from "../chat/ChatShell";
-import { findEnvironment, parseConfig } from "../config";
+import { findEnvironment, parseConfig, type AppConfig } from "../config";
 import { useHashRoute } from "./useHashRoute";
 
 const configResult = parseConfig(import.meta.env);
 
 export function App() {
-  const [route, navigate] = useHashRoute();
-  const [pat, setPat] = useState(() => loadPat(sessionStorage));
-
   if (!configResult.ok) {
     return (
       <div className="mx-auto max-w-xl p-space-6">
@@ -26,19 +22,23 @@ export function App() {
       </div>
     );
   }
+  return <ConfiguredApp config={configResult.config} />;
+}
 
-  const config = configResult.config;
+function ConfiguredApp({ config }: { readonly config: AppConfig }) {
+  const [route, navigate] = useHashRoute();
+  const { state, langsmith, signInWithKey, signOut } = useSession(config);
   const environment = findEnvironment(config, route.environment);
 
-  if (!pat) {
+  if (state.status === "checking") return null;
+  if (state.status === "signed-out") {
     return (
       <SignIn
         environment={environment}
         workspaceId={config.workspaceId}
-        onSignIn={(key) => {
-          savePat(sessionStorage, key);
-          setPat(key.trim());
-        }}
+        langsmith={langsmith}
+        problem={state.problem}
+        onSignIn={signInWithKey}
       />
     );
   }
@@ -48,12 +48,9 @@ export function App() {
       config={config}
       environment={environment}
       threadId={route.threadId}
-      pat={pat}
+      auth={state.session}
       onNavigate={navigate}
-      onSignOut={() => {
-        clearPat(sessionStorage);
-        setPat(null);
-      }}
+      onSignOut={() => void signOut()}
     />
   );
 }

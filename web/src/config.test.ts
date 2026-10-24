@@ -32,10 +32,22 @@ describe("parseConfig", () => {
     expect(result.ok && result.config.environments.map((e) => e.id)).toEqual(["development"]);
   });
 
+  it("offers Sign in with LangSmith only when the build names an OAuth app and its org", () => {
+    const parsed = (env: Record<string, string>) => {
+      const result = parseConfig({ ...base, VITE_AGENT_URL_PRODUCTION: "p", ...env });
+      return result.ok ? result.config.langsmithApp : "invalid";
+    };
+    expect(
+      parsed({ VITE_OAUTH_CLIENT_ID: " lsc_1 ", VITE_LANGSMITH_ORGANIZATION_ID: "org-1" }),
+    ).toEqual({ clientId: "lsc_1", organizationId: "org-1" });
+    expect(parsed({ VITE_OAUTH_CLIENT_ID: "lsc_1" })).toBe("invalid");
+    expect(parsed({})).toBeNull();
+  });
+
   it("reports every missing setting", () => {
-    const result = parseConfig({ VITE_AUTH_MODE: "oauth" });
+    const result = parseConfig({});
     expect(result.ok).toBe(false);
-    expect(!result.ok && result.problems).toHaveLength(3);
+    expect(!result.ok && result.problems).toHaveLength(2);
   });
 });
 

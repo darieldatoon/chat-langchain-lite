@@ -28,6 +28,7 @@ export function createApi(options: {
   baseUrl: string;
   apiKey: string;
   workspaceId: string;
+  headers?: Readonly<Record<string, string>>;
   fetchFn?: FetchFn;
 }): Api {
   const { baseUrl, apiKey, workspaceId, fetchFn = fetch } = options;
@@ -35,6 +36,7 @@ export function createApi(options: {
     "content-type": "application/json",
     "x-api-key": apiKey,
     "x-tenant-id": workspaceId,
+    ...options.headers,
   };
 
   async function request<T>(method: string, path: string, body?: unknown, query?: object) {

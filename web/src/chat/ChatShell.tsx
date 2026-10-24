@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Brand } from "../app/Brand";
 import type { Route } from "../app/route";
 import { SegmentedControl, type SegmentedOption } from "../app/SegmentedControl";
-import { authHeaders } from "../auth/pat";
+import { apiFetch, withHeaders, type Session } from "../auth/session";
 import type { AgentEnvironment, AppConfig } from "../config";
 import { ChatView } from "./ChatView";
 import type { FeedbackDeps } from "./FeedbackBar";
@@ -24,7 +24,7 @@ interface ChatShellProps {
   readonly config: AppConfig;
   readonly environment: AgentEnvironment;
   readonly threadId: string | null;
-  readonly pat: string;
+  readonly auth: Session;
   readonly onNavigate: (route: Route, options?: { replace?: boolean }) => void;
   readonly onSignOut: () => void;
 }
@@ -43,14 +43,17 @@ export function ChatShell({
   config,
   environment,
   threadId,
-  pat,
+  auth,
   onNavigate,
   onSignOut,
 }: ChatShellProps) {
-  const headers = useMemo(() => authHeaders(pat, config.workspaceId), [pat, config.workspaceId]);
   const client = useMemo(
-    () => new Client({ apiUrl: environment.url, defaultHeaders: headers }),
-    [environment.url, headers],
+    () =>
+      new Client({
+        apiUrl: environment.url,
+        onRequest: async (_url, init) => withHeaders(init, await auth.agentHeaders()),
+      }),
+    [environment.url, auth],
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === "1");
@@ -62,9 +65,9 @@ export function ChatShell({
   // Bumped only by user navigation, so assigning an id to a brand-new thread doesn't remount the stream.
   const [session, setSession] = useState(0);
 
-  const { threads, threadsError, refreshThreads } = useThreads(client);
+  const { threads, threadsError, refreshThreads } = useThreads(client, auth.ownerId);
   const { runIds, addLiveRun } = useRunIds(client, threadId);
-  const feedback = useFeedbackDeps(config.workspaceId, environment, headers);
+  const feedback = useFeedbackDeps(config.workspaceId, environment, auth);
   // The server creates a new thread together with its first run, so its title waits for that run.
   const pendingTitle = useRef<{ threadId: string; title: string } | null>(null);
 
@@ -148,7 +151,7 @@ export function ChatShell({
           <ChatView
             key={`${environment.id}:${session}`}
             environment={environment}
-            headers={headers}
+            client={client}
             threadId={threadId}
             runIds={runIds}
             feedback={feedback}
@@ -218,7 +221,7 @@ function ThemePicker() {
   return <SegmentedControl label="Theme" options={THEME_OPTIONS} value={mode} onChange={setMode} />;
 }
 
-function useThreads(client: Client) {
+function useThreads(client: Client, ownerId: string | undefined) {
   const [threads, setThreads] = useState<ThreadSummary[] | null>(null);
   const [threadsError, setThreadsError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
@@ -228,6 +231,7 @@ function useThreads(client: Client) {
     client.threads
       .search({
         limit: 50,
+        metadata: ownerId ? { owner: ownerId } : undefined,
         sortBy: "updated_at",
         sortOrder: "desc",
         select: ["thread_id", "updated_at", "metadata"],
@@ -246,7 +250,7 @@ function useThreads(client: Client) {
     return () => {
       cancelled = true;
     };
-  }, [client, version]);
+  }, [client, ownerId, version]);
 
   const refreshThreads = useCallback(() => setVersion((value) => value + 1), []);
   return { threads, threadsError, refreshThreads };
@@ -278,14 +282,11 @@ function useRunIds(client: Client, threadId: string | null) {
 function useFeedbackDeps(
   workspaceId: string,
   environment: AgentEnvironment,
-  headers: Record<string, string>,
+  auth: Session,
 ): FeedbackDeps {
   const projectIds = useRef(new Map<string, Promise<string | null>>());
   return useMemo(() => {
-    const deps = {
-      fetchFn: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
-      headers,
-    };
+    const deps = { fetchFn: apiFetch(auth) };
     return {
       ...deps,
       openTrace: (runId: string) => {
@@ -303,5 +304,5 @@ function useFeedbackDeps(
         });
       },
     };
-  }, [workspaceId, environment.projectName, headers]);
+  }, [workspaceId, environment.projectName, auth]);
 }
