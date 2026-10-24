@@ -1,3 +1,4 @@
+import type { Client } from "@langchain/langgraph-sdk";
 import { useStream } from "@langchain/react";
 import { Banner } from "@langchain/macaw-components/Banner";
 import { Button } from "@langchain/macaw-components/Button";
@@ -27,7 +28,7 @@ const STARTERS = [
 
 interface ChatViewProps {
   readonly environment: AgentEnvironment;
-  readonly headers: Record<string, string>;
+  readonly client: Client;
   readonly threadId: string | null;
   readonly runIds: readonly string[];
   readonly feedback: FeedbackDeps;
@@ -38,16 +39,15 @@ interface ChatViewProps {
 }
 
 export function ChatView(props: ChatViewProps) {
-  const { environment, headers, threadId, runIds, feedback } = props;
+  const { environment, client, threadId, runIds, feedback } = props;
   const [sendError, setSendError] = useState<string | null>(null);
   const lastSent = useRef("");
 
   const stream = useStream({
-    apiUrl: environment.url,
+    client,
     assistantId: ASSISTANT_ID,
-    // WebSockets can't carry the PAT header, so stay on SSE.
+    // WebSockets can't carry the auth headers, so stay on SSE.
     transport: "sse",
-    defaultHeaders: headers,
     threadId,
     onThreadId: (id) => props.onThreadId(id, lastSent.current),
     onCreated: ({ runId }) => runId && props.onRunCreated(runId),

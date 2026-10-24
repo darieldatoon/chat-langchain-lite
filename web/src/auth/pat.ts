@@ -1,3 +1,6 @@
+import { LANGSMITH_API_URL } from "../chat/langsmith";
+import type { Session } from "./session";
+
 // The PAT lives in sessionStorage only: it disappears with the tab and is never baked into the bundle.
 const STORAGE_KEY = "chat-langchain-lite:langsmith-pat";
 
@@ -15,8 +18,41 @@ export function clearPat(store: KeyValueStore): void {
   store.removeItem(STORAGE_KEY);
 }
 
-export function authHeaders(pat: string, workspaceId: string): Record<string, string> {
+export function apiKeyHeaders(pat: string, workspaceId: string): Record<string, string> {
   return { "x-api-key": pat, "X-Tenant-Id": workspaceId };
+}
+
+/** The agent accepts only OAuth tokens itself; a key goes through the platform's own check of this workspace. */
+export function agentKeyHeaders(pat: string, workspaceId: string): Record<string, string> {
+  return { ...apiKeyHeaders(pat, workspaceId), "x-auth-scheme": "langsmith" };
+}
+
+/** The id the agent files this key's threads under, the same one an OAuth sign-in gets. */
+export async function keyOwnerId(
+  fetchFn: typeof fetch,
+  pat: string,
+  workspaceId: string,
+): Promise<string> {
+  const response = await fetchFn(`${LANGSMITH_API_URL}/auth/public`, {
+    headers: apiKeyHeaders(pat, workspaceId),
+  });
+  if (!response.ok) throw new Error(`LangSmith returned ${response.status} for that key.`);
+  return ((await response.json()) as { ls_user_id: string }).ls_user_id;
+}
+
+export function patSession(
+  store: KeyValueStore,
+  pat: string,
+  workspaceId: string,
+  ownerId: string,
+): Session {
+  return {
+    kind: "pat",
+    ownerId,
+    agentHeaders: async () => agentKeyHeaders(pat, workspaceId),
+    apiHeaders: async () => apiKeyHeaders(pat, workspaceId),
+    signOut: async () => clearPat(store),
+  };
 }
 
 export type PatCheck = { ok: true } | { ok: false; message: string };

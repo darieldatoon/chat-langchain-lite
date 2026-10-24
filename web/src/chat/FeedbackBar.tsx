@@ -11,7 +11,6 @@ import { saveFeedback } from "./langsmith";
 
 export interface FeedbackDeps {
   readonly fetchFn: typeof fetch;
-  readonly headers: Record<string, string>;
   readonly openTrace: (runId: string) => void;
 }
 
