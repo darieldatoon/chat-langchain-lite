@@ -11,10 +11,17 @@ export interface AgentEnvironment {
   readonly projectName: string;
 }
 
+/** The "Sign in with LangSmith" OAuth app, and the org whose members the agent admits. */
+export interface LangSmithApp {
+  readonly clientId: string;
+  readonly organizationId: string;
+}
+
 export interface AppConfig {
   readonly environments: readonly AgentEnvironment[];
   readonly workspaceId: string;
-  readonly authMode: "pat";
+  /** Null offers only personal access tokens. */
+  readonly langsmithApp: LangSmithApp | null;
 }
 
 export type ConfigResult =
@@ -34,19 +41,21 @@ export function parseConfig(env: Env): ConfigResult {
     return url ? [{ id, label, url, projectName: `${ASSISTANT_ID}-${id}` }] : [];
   });
   const workspaceId = env.VITE_LANGSMITH_WORKSPACE_ID?.trim() ?? "";
-  const authMode = env.VITE_AUTH_MODE?.trim() || "pat";
+  const clientId = env.VITE_OAUTH_CLIENT_ID?.trim() ?? "";
+  const organizationId = env.VITE_LANGSMITH_ORGANIZATION_ID?.trim() ?? "";
 
   const problems = [
     ...(environments.length
       ? []
       : ["Set VITE_AGENT_URL_PRODUCTION or VITE_AGENT_URL_DEVELOPMENT."]),
     ...(workspaceId ? [] : ["Set VITE_LANGSMITH_WORKSPACE_ID."]),
-    ...(authMode === "pat"
-      ? []
-      : [`VITE_AUTH_MODE "${authMode}" is not supported yet; use "pat".`]),
+    ...(clientId && !organizationId
+      ? ["Set VITE_LANGSMITH_ORGANIZATION_ID, or unset VITE_OAUTH_CLIENT_ID."]
+      : []),
   ];
   if (problems.length) return { ok: false, problems };
-  return { ok: true, config: { environments, workspaceId, authMode: "pat" } };
+  const langsmithApp = clientId ? { clientId, organizationId } : null;
+  return { ok: true, config: { environments, workspaceId, langsmithApp } };
 }
 
 export function findEnvironment(config: AppConfig, id: string | null): AgentEnvironment {

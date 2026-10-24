@@ -26,6 +26,7 @@ export interface DeploymentRecord {
   readonly latest_revision_id: string | null;
   readonly active_revision_id: string | null;
   readonly tracer_session_id: string | null;
+  readonly secrets?: readonly Secret[];
 }
 
 export interface GithubSource {
@@ -38,11 +39,54 @@ export function corsOrigins(owner: string): string {
   return `https://smith.langchain.com,https://${owner.toLowerCase()}.github.io,http://localhost:5173`;
 }
 
+export interface Secret {
+  readonly name: string;
+  readonly value: string;
+}
+
+/** Who "Sign in with LangSmith" admits. agent/access.ts reads these secrets. */
+export interface SignInSettings {
+  readonly organizationId: string;
+  /** Null until an org admin registers the OAuth app; the agent then refuses every OAuth token. */
+  readonly clientId: string | null;
+}
+
+export function deploymentSecrets(options: {
+  readonly gatewayKey: string;
+  readonly cors: string;
+  readonly signIn: SignInSettings;
+}): Secret[] {
+  return [
+    { name: "LANGSMITH_GATEWAY_API_KEY", value: options.gatewayKey },
+    { name: "MDA_CORS_ORIGINS", value: options.cors },
+    // mda deploy derives this for the Agent Server's own routes; GitHub builds don't, so set it here.
+    { name: "CORS_ALLOW_ORIGINS", value: options.cors },
+    { name: "ALLOWED_ORGANIZATION_ID", value: options.signIn.organizationId },
+    ...(options.signIn.clientId
+      ? [{ name: "OAUTH_CLIENT_ID", value: options.signIn.clientId }]
+      : []),
+  ];
+}
+
+/**
+ * The deployment's secrets with `desired` applied, or null when none change.
+ * Keeps every other secret: PATCH sends the full list, and the platform minted some of them.
+ */
+export function mergeSecrets(
+  current: readonly Secret[],
+  desired: readonly Secret[],
+): Secret[] | null {
+  const values = new Map(current.map((secret) => [secret.name, secret.value]));
+  if (desired.every((secret) => values.get(secret.name) === secret.value)) return null;
+  for (const secret of desired) values.set(secret.name, secret.value);
+  return [...values].map(([name, value]) => ({ name, value }));
+}
+
 /** Don't switch to POST /v2/managed-deep-agents: it can't bind a deployment to an agent environment. */
 export function createBody(
   environment: Environment,
   source: GithubSource,
-  options: { readonly deploymentType: string; readonly gatewayKey: string; readonly cors: string },
+  options: { readonly deploymentType: string; readonly secrets: readonly Secret[] },
 ) {
   return {
     agent: { agent_id: ASSISTANT_ID, environment },
@@ -58,12 +102,7 @@ export function createBody(
       repo_ref: ENVIRONMENT_BRANCHES[environment],
       langgraph_config_path: "agent",
     },
-    secrets: [
-      { name: "LANGSMITH_GATEWAY_API_KEY", value: options.gatewayKey },
-      { name: "MDA_CORS_ORIGINS", value: options.cors },
-      // mda deploy derives this for the Agent Server's own routes; GitHub builds don't, so set it here.
-      { name: "CORS_ALLOW_ORIGINS", value: options.cors },
-    ],
+    secrets: options.secrets,
   };
 }
 

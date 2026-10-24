@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
-import { ASSISTANT_ID, ask, findDeployment, type Deployment } from "./agent.ts";
+import { ASSISTANT_ID, ask, findDeployment, PLATFORM_SCHEME, type Deployment } from "./agent.ts";
 import { createApi, type Api } from "./api.ts";
 import { developmentGap, parseGitHubRepo } from "./branches.ts";
 import { readConfig, type Config } from "./config.ts";
@@ -46,6 +46,7 @@ function agentApi(config: Config, deployment: Deployment): Api {
     baseUrl: deployment.url,
     apiKey: config.apiKey,
     workspaceId: config.workspaceId,
+    headers: PLATFORM_SCHEME,
   });
 }
 

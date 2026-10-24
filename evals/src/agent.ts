@@ -3,6 +3,9 @@ import { ApiError, type Api } from "./api.ts";
 export const ASSISTANT_ID = "chat-langchain-lite";
 export type Environment = "production" | "development";
 
+/** The agent only accepts OAuth tokens directly; a LangSmith API key needs the platform's scheme, as Studio and Engine send. */
+export const PLATFORM_SCHEME = { "x-auth-scheme": "langsmith" } as const;
+
 export interface AgentRecord {
   readonly tag_value_id: string | null;
   readonly environments?: readonly { readonly tracer_session_id: string }[];
