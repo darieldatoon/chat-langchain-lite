@@ -17,6 +17,7 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - **The `Assertions (auto-attached)` rule name** in `evals/src/evaluators.ts` must stay exact. Adding assertion examples from an annotation queue creates a duplicate judge under any other name.
 - **The deployments' CORS lists must include `https://smith.langchain.com`.** `corsOrigins` in `evals/src/deployments.ts` sets both `MDA_CORS_ORIGINS` and `CORS_ALLOW_ORIGINS`. They replace the default allow-list, and GitHub builds don't derive `CORS_ALLOW_ORIGINS` the way `mda deploy` did; without it the LangSmith UI (Deployments, Studio) can't reach the agent.
 - **`agent/identity.ts` accepts only "Sign in with LangSmith" tokens**, so anything calling the agent with a LangSmith API key must send `x-auth-scheme: langsmith` (`PLATFORM_SCHEME` in `evals/src/agent.ts`, `agentKeyHeaders` in `web/src/auth/pat.ts`). Keep `agent/access.ts` in the agent's middleware: LangSmith issues these tokens to any user of any OAuth app. `mda` parses `identity.ts` statically, so its values stay literals.
+- **`merge-guard` leaves Engine's fix PRs pending, never failed.** The demo shows Engine's verdict without merging; Engine revises its fix whenever a check on its PR fails. Branch protection requires the status (`branchProtection` in `evals/src/github.ts`).
 - **No `[env]` defaults in the root `mise.toml`.** mise env overrides CI's variables.
 - **Secrets live only in `agent/.env`.** Never add keys to Vite env (`VITE_*` values are public) or commit them.
 

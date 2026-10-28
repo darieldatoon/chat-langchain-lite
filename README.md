@@ -119,6 +119,8 @@ Install doesn't create the Engine board, because creating one starts a paid scan
 
 Fix verification needs the `enable_engine_issue_validation` flag on the workspace.
 
+Engine's fix PRs can't be merged: the `merge-guard` check stays pending on them. Show the verdict instead.
+
 ## Uninstall
 
 `mise run demo:uninstall` lists everything the demo created in the workspace, with what each evaluator is attached to. `mise run demo:uninstall -- --yes` deletes it in dependency order, re-checks, and lists what to remove by hand on GitHub and locally. It keeps the `LC_GATEWAY_KEY` workspace secret and the `user_score` feedback config, which other apps share.
