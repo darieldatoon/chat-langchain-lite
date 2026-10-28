@@ -9,13 +9,16 @@ import {
   corsOrigins,
   createBody,
   createWhenEnvironmentFree,
+  deploymentSecrets,
   ENVIRONMENT_BRANCHES,
   findAgentDeployment,
   findGithubSource,
+  mergeSecrets,
   PREVIEW_CONFIG,
   waitUntilDeployed,
   type DeploymentRecord,
   type GithubSource,
+  type Secret,
 } from "./deployments.ts";
 import { branchProtection, originRepo, run, runSince, type WorkflowRun } from "./github.ts";
 
@@ -28,8 +31,7 @@ const REPO_SECRETS = ["LANGSMITH_API_KEY"] as const;
 
 interface DeployOptions {
   readonly source: GithubSource;
-  readonly gatewayKey: string;
-  readonly cors: string;
+  readonly secrets: readonly Secret[];
   readonly redeploy: boolean;
   readonly replace: boolean;
 }
@@ -106,15 +108,21 @@ async function ensureDeployment(
   const branch = ENVIRONMENT_BRANCHES[environment];
   const existing = await findAgentDeployment(hostApi, environment);
   if (existing?.source === "github") {
-    if (!options.redeploy) {
+    // The list endpoint omits secrets.
+    const current = await hostApi.get<DeploymentRecord>(`/v2/deployments/${existing.id}`);
+    const secrets = mergeSecrets(current.secrets ?? [], options.secrets);
+    if (secrets) {
+      await hostApi.patch(`/v2/deployments/${existing.id}`, { secrets });
+      log(`${environment}: updated ${existing.name}'s secrets, which rebuilds it`);
+    } else if (options.redeploy) {
+      await hostApi.post(`/v2/deployments/${existing.id}/revisions`, {});
+      log(`${environment}: rebuilding ${existing.name} from ${branch}`);
+    } else {
       log(
         `${environment} already builds from ${branch} on every push; --redeploy to rebuild it now`,
       );
-      // An interrupted install can leave its first build pending or failed.
-      return waitUntilDeployed(hostApi, existing.id, log);
     }
-    await hostApi.post(`/v2/deployments/${existing.id}/revisions`, {});
-    log(`${environment}: rebuilding ${existing.name} from ${branch}`);
+    // An interrupted install can leave its first build pending or failed.
     return waitUntilDeployed(hostApi, existing.id, log);
   }
   if (existing) {
@@ -129,8 +137,7 @@ async function ensureDeployment(
     // Fixed when a deployment is created.
     deploymentType:
       environment === "production" ? (process.env.PRODUCTION_DEPLOYMENT_TYPE ?? "dev") : "dev",
-    gatewayKey: options.gatewayKey,
-    cors: options.cors,
+    secrets: options.secrets,
   });
   const created = await createWhenEnvironmentFree(hostApi, body, log);
   log(`${environment}: building ${created.name} from ${branch}`);
@@ -206,6 +213,8 @@ async function connectEngine(
   await api.patch(path, {
     validation_deployment_id: development.id,
     preview_verify_enabled: true,
+    // Verification starts only once the fix has a PR; merge-guard holds it open.
+    auto_open_fix_pr: true,
     // GitHub builds sync Context Hub into a repo named after the deployment.
     context_hub_repo_handle: production.name,
   });
@@ -267,10 +276,34 @@ async function main() {
   disableCliDeployWorkflow(repo);
   ensurePages(repo);
 
+  const organization = await api.get<{ id: string }>("/orgs/current");
+  const clientId = process.env.OAUTH_CLIENT_ID?.trim() || null;
+  gh(["variable", "set", "VITE_LANGSMITH_ORGANIZATION_ID", "-R", repo, "--body", organization.id]);
+  const { sso_login_slug: ssoSlug } = await api.get<{ sso_login_slug?: string | null }>(
+    "/orgs/current/info",
+  );
+  if (ssoSlug) gh(["variable", "set", "VITE_LANGSMITH_SSO_SLUG", "-R", repo, "--body", ssoSlug]);
+  else {
+    try {
+      gh(["variable", "delete", "VITE_LANGSMITH_SSO_SLUG", "-R", repo]);
+    } catch {}
+  }
+  if (clientId) gh(["variable", "set", "VITE_OAUTH_CLIENT_ID", "-R", repo, "--body", clientId]);
+  else {
+    try {
+      gh(["variable", "delete", "VITE_OAUTH_CLIENT_ID", "-R", repo]);
+    } catch {}
+    log(
+      "OAUTH_CLIENT_ID is blank in agent/.env, so the app offers only personal access tokens. See the README's Sign in with LangSmith.",
+    );
+  }
   const options: DeployOptions = {
     source,
-    gatewayKey,
-    cors: corsOrigins(repo.split("/")[0]!),
+    secrets: deploymentSecrets({
+      gatewayKey,
+      cors: corsOrigins(repo.split("/")[0]!),
+      signIn: { organizationId: organization.id, clientId },
+    }),
     redeploy: values.redeploy,
     replace: values.replace,
   };

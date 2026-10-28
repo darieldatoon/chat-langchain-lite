@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { authHeaders, clearPat, loadPat, savePat, verifyPat } from "./pat";
+import {
+  agentKeyHeaders,
+  apiKeyHeaders,
+  clearPat,
+  keyOwnerId,
+  loadPat,
+  savePat,
+  verifyPat,
+} from "./pat";
 
 function memoryStore() {
   const data = new Map<string, string>();
@@ -24,9 +32,25 @@ describe("PAT storage", () => {
   });
 });
 
-describe("authHeaders", () => {
+describe("key headers", () => {
   it("sends the key and the deployment workspace", () => {
-    expect(authHeaders("k", "ws")).toEqual({ "x-api-key": "k", "X-Tenant-Id": "ws" });
+    expect(apiKeyHeaders("k", "ws")).toEqual({ "x-api-key": "k", "X-Tenant-Id": "ws" });
+  });
+
+  it("routes a key through the platform scheme, since the agent itself takes only OAuth tokens", () => {
+    expect(agentKeyHeaders("k", "ws")).toMatchObject({ "x-auth-scheme": "langsmith" });
+  });
+});
+
+describe("keyOwnerId", () => {
+  it("returns the LangSmith user id the agent owns threads under", async () => {
+    const fetchFn = (async () =>
+      Response.json({ user_id: "identity", ls_user_id: "user" })) as typeof fetch;
+    expect(await keyOwnerId(fetchFn, "k", "ws")).toBe("user");
+  });
+
+  it("fails for a key LangSmith rejects", async () => {
+    await expect(keyOwnerId(fetchReturning(401), "k", "ws")).rejects.toThrow(/401/);
   });
 });
 

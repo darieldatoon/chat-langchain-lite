@@ -16,13 +16,16 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - **The assistant id `chat-langchain-lite`** appears in `agent/agent.ts`, `web/src/config.ts` and `evals/src/agent.ts`. Change all three or none.
 - **The `Assertions (auto-attached)` rule name** in `evals/src/evaluators.ts` must stay exact. Adding assertion examples from an annotation queue creates a duplicate judge under any other name.
 - **The deployments' CORS lists must include `https://smith.langchain.com`.** `corsOrigins` in `evals/src/deployments.ts` sets both `MDA_CORS_ORIGINS` and `CORS_ALLOW_ORIGINS`. They replace the default allow-list, and GitHub builds don't derive `CORS_ALLOW_ORIGINS` the way `mda deploy` did; without it the LangSmith UI (Deployments, Studio) can't reach the agent.
+- **`agent/identity.ts` accepts only "Sign in with LangSmith" tokens**, so anything calling the agent with a LangSmith API key must send `x-auth-scheme: langsmith` (`PLATFORM_SCHEME` in `evals/src/agent.ts`, `agentKeyHeaders` in `web/src/auth/pat.ts`). Keep `agent/access.ts` in the agent's middleware: LangSmith issues these tokens to any user of any OAuth app. `mda` parses `identity.ts` statically, so its values stay literals.
+- **`merge-guard` leaves Engine's fix PRs pending, never failed.** The demo shows Engine's verdict without merging; Engine revises its fix whenever a check on its PR fails. Branch protection requires the status (`branchProtection` in `evals/src/github.ts`).
 - **No `[env]` defaults in the root `mise.toml`.** mise env overrides CI's variables.
 - **Secrets live only in `agent/.env`.** Never add keys to Vite env (`VITE_*` values are public) or commit them.
 
 ## Layout
 
 - `agent/model.ts`: the Gateway model (Haiku 5.5 via `LANGSMITH_GATEWAY_API_KEY`).
-- `agent/identity.ts`: PAT auth; deployments admit members of their workspace only.
+- `agent/identity.ts` and `agent/access.ts`: "Sign in with LangSmith" tokens from our OAuth app and org; API keys through the platform scheme, for members of the deployment's workspace.
+- `web/src/auth/`: OAuth (PKCE, refresh in the tab) and PAT sessions; each request asks the session for fresh headers.
 - `web/src/chat/turns.ts`: messages → render-ready turns (pure, tested).
 - `web/src/components/`: chat components copied from LangSmith's design system; keep upstream edits minimal.
 - `evals/src/install.ts`: creates both environments as GitHub-connected deployments, turns on previews for `development` and points the Engine board at it.

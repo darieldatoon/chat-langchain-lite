@@ -13,12 +13,10 @@ function recordingFetch(body: unknown, status = 200) {
   return { calls, fetchFn };
 }
 
-const headers = { "x-api-key": "k", "X-Tenant-Id": "ws" };
-
 describe("saveFeedback", () => {
   it("creates feedback on the root run with the user_score key", async () => {
     const { calls, fetchFn } = recordingFetch({ id: "fb-1" });
-    const id = await saveFeedback({ fetchFn, headers }, { runId: "run-1", score: 1 });
+    const id = await saveFeedback({ fetchFn }, { runId: "run-1", score: 1 });
     expect(id).toBe("fb-1");
     expect(calls[0]!.init?.method).toBe("POST");
     expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({
@@ -31,27 +29,21 @@ describe("saveFeedback", () => {
 
   it("updates existing feedback instead of adding a second row", async () => {
     const { calls, fetchFn } = recordingFetch({ id: "fb-1" });
-    await saveFeedback(
-      { fetchFn, headers },
-      { runId: "run-1", score: 0, comment: "cut off" },
-      "fb-1",
-    );
+    await saveFeedback({ fetchFn }, { runId: "run-1", score: 0, comment: "cut off" }, "fb-1");
     expect(calls[0]!.url).toMatch(/\/api\/v1\/feedback\/fb-1$/);
     expect(calls[0]!.init?.method).toBe("PATCH");
   });
 
   it("surfaces API errors", async () => {
     const { fetchFn } = recordingFetch({}, 403);
-    await expect(saveFeedback({ fetchFn, headers }, { runId: "r", score: 1 })).rejects.toThrow(
-      /403/,
-    );
+    await expect(saveFeedback({ fetchFn }, { runId: "r", score: 1 })).rejects.toThrow(/403/);
   });
 });
 
 describe("trace links", () => {
   it("looks up the environment's tracing project by name", async () => {
     const { calls, fetchFn } = recordingFetch([{ id: "p-1" }]);
-    expect(await findProjectId({ fetchFn, headers }, "chat-langchain-lite-production")).toBe("p-1");
+    expect(await findProjectId({ fetchFn }, "chat-langchain-lite-production")).toBe("p-1");
     expect(calls[0]!.url).toContain("name=chat-langchain-lite-production");
   });
 

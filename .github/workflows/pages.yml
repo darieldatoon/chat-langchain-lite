@@ -32,7 +32,9 @@ jobs:
           VITE_AGENT_URL_PRODUCTION: ${{ vars.VITE_AGENT_URL_PRODUCTION }}
           VITE_AGENT_URL_DEVELOPMENT: ${{ vars.VITE_AGENT_URL_DEVELOPMENT }}
           VITE_LANGSMITH_WORKSPACE_ID: ${{ vars.VITE_LANGSMITH_WORKSPACE_ID || vars.LANGSMITH_WORKSPACE_ID }}
-          VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'pat' }}
+          VITE_OAUTH_CLIENT_ID: ${{ vars.VITE_OAUTH_CLIENT_ID }}
+          VITE_LANGSMITH_ORGANIZATION_ID: ${{ vars.VITE_LANGSMITH_ORGANIZATION_ID }}
+          VITE_LANGSMITH_SSO_SLUG: ${{ vars.VITE_LANGSMITH_SSO_SLUG }}
         run: mise run //web:build
       - uses: actions/upload-pages-artifact@v5
         with:

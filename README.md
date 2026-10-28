@@ -74,7 +74,7 @@ One agent, `chat-langchain-lite`, per workspace, with two environments. Both are
 
 LangSmith builds whether or not CI passed, so `main` and `development` are protected: merging a pull request needs a passing `check`. Admins can still push directly.
 
-Each build syncs `agent/instructions.md` and `agent/skills/` to a Context Hub repo named after the deployment, with git winning. The Gateway key and the CORS allow-list are deployment secrets, which `mise run demo:install` sets.
+Each build syncs `agent/instructions.md` and `agent/skills/` to a Context Hub repo named after the deployment, with git winning. The Gateway key, the CORS allow-list and the sign-in settings are deployment secrets, which `mise run demo:install` sets.
 
 `development` runs one commit ahead of `main` on purpose, so the demo has a candidate to compare against production. To release it, open a pull request from `development` into `main` and merge it with a merge commit. A squash merge leaves `development` looking ahead with nothing new. After anything lands on `main` directly, merge `main` back into `development`.
 
@@ -90,13 +90,23 @@ The deployment type is fixed when a deployment is first created. Changing it lat
    - sets the `LANGSMITH_API_KEY` repo secret if it's missing, and the `LANGSMITH_WORKSPACE_ID` variable
    - protects `main` and `development`, and turns on GitHub Pages
    - creates both environments as GitHub-connected deployments and waits for their first build
-   - sets the `VITE_AGENT_URL_DEVELOPMENT` and `VITE_AGENT_URL_PRODUCTION` variables, turns on previews for `development`, and points an existing Engine board at it
+   - sets the `VITE_AGENT_URL_DEVELOPMENT` and `VITE_AGENT_URL_PRODUCTION` variables, plus `VITE_LANGSMITH_ORGANIZATION_ID`, `VITE_LANGSMITH_SSO_SLUG` when the org uses SSO, and `VITE_OAUTH_CLIENT_ID` when `agent/.env` has one
+   - turns on previews for `development`, and points an existing Engine board at it
    - publishes Pages and runs `demo:prepare`
 
-   Re-running skips what's done; `--redeploy` rebuilds both environments. A workspace whose environments were deployed with the mda CLI needs `--replace` once: it deletes them and creates them again from GitHub, keeping their tracing projects and rules.
+   Re-running skips what's done, but updates the deployments' secrets when they change; `--redeploy` rebuilds both environments. A workspace whose environments were deployed with the mda CLI needs `--replace` once: it deletes them and creates them again from GitHub, keeping their tracing projects and rules.
 4. Your app is at `https://<you>.github.io/<repo>/`.
 
-Sign in with your LangSmith personal access token. It stays in the browser tab and is sent only to your agent and to the LangSmith API.
+### Sign in with LangSmith
+
+The app signs people in with their LangSmith account, and keeps personal access tokens as a fallback. Both stay in the browser tab and go only to your agent and to the LangSmith API.
+
+1. Ask an org admin to register an OAuth app under **Settings → OAuth applications**: type **Public**, redirect URIs `https://<you>.github.io/<repo>/` (trailing slash included) and `http://localhost`, scopes `openid`, `email`, `profile` and `offline_access`. It needs the org's `sign_in_with_langsmith` flag.
+2. Put its client id (`lsc_…`) in `agent/.env` as `OAUTH_CLIENT_ID` and re-run `mise run demo:install`.
+
+LangSmith lets any of its users approve the app, so the agent admits only tokens issued to this app for members of your org. People in several orgs choose one on LangSmith's consent page; if they choose another, the app sends them back to choose again. The consent page lists only the orgs of the account they're signed in to LangSmith with. When the org uses SSO, sign-in goes through its SSO login first, which also switches a LangSmith session signed in with another account; otherwise people sign out of LangSmith and back in with the right login. The sign-in screen remembers the last account's email (no tokens) in `localStorage`. Keys reach the agent through LangSmith's own check of the workspace, the way Studio and Engine call it. People who sign in with a key see only their own threads in the app; the API would let them read everyone's.
+
+For local sign-in, put `VITE_OAUTH_CLIENT_ID=lsc_…`, `VITE_LANGSMITH_ORGANIZATION_ID` and `VITE_LANGSMITH_SSO_SLUG` (if any) in `web/.env.development.local`, and `OAUTH_CLIENT_ID` and `ALLOWED_ORGANIZATION_ID` in `agent/.env`.
 
 ### Engine fix verification
 
@@ -108,6 +118,8 @@ Install doesn't create the Engine board, because creating one starts a paid scan
 4. Re-run `mise run demo:install`. It points the board at `development` and turns on fix verification.
 
 Fix verification needs the `enable_engine_issue_validation` flag on the workspace.
+
+Engine's fix PRs can't be merged: the `merge-guard` check stays pending on them. Show the verdict instead.
 
 ## Uninstall
 
