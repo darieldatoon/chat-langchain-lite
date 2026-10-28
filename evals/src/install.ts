@@ -213,6 +213,8 @@ async function connectEngine(
   await api.patch(path, {
     validation_deployment_id: development.id,
     preview_verify_enabled: true,
+    // Verification starts only once the fix has a PR; merge-guard holds it open.
+    auto_open_fix_pr: true,
     // GitHub builds sync Context Hub into a repo named after the deployment.
     context_hub_repo_handle: production.name,
   });
