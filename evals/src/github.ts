@@ -35,10 +35,13 @@ export function runSince(runs: readonly WorkflowRun[], since: Date): WorkflowRun
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
-/** Merges need a green `check` (CI's job); admins can still push directly, as the demo reset does. */
+/** Merges need a green `check` (CI's job) and `merge-guard`, which holds Engine's fixes open; admins can still push directly. */
 export function branchProtection() {
   return {
-    required_status_checks: { strict: false, checks: [{ context: "check" }] },
+    required_status_checks: {
+      strict: false,
+      checks: [{ context: "check" }, { context: "merge-guard" }],
+    },
     enforce_admins: false,
     required_pull_request_reviews: null,
     restrictions: null,
