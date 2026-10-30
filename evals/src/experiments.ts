@@ -103,6 +103,8 @@ export async function runExperiment(options: {
   readonly asOf: string;
   readonly concurrency: number;
   readonly split?: string;
+  /** Run again even when a complete experiment exists for this revision and dataset version. */
+  readonly fresh?: boolean;
   readonly log: (line: string) => void;
 }): Promise<ExperimentResult> {
   const { api, agentApi, spec, deployment, datasetId, asOf, concurrency, split, log } = options;
@@ -118,7 +120,7 @@ export async function runExperiment(options: {
     reference_dataset: datasetId,
   });
   const match = existing.find((session) => isSameExperiment(session.name, baseName));
-  if (match) {
+  if (match && !options.fresh) {
     const completion = completionOf(await sessionStats(api, match.id), expectedRows, OFFLINE_KEYS);
     if (completion.complete) {
       log(`${spec.role}: already complete (${baseName})`);
@@ -183,6 +185,31 @@ export async function runExperiment(options: {
     status: "ran",
     failedRuns: failures.filter(Boolean).length,
   };
+}
+
+/** Earlier experiments prepare ran for this role, which a refresh replaces. Experiments people ran keep other names. */
+export function staleExperiments<T extends { readonly name: string }>(
+  sessions: readonly T[],
+  role: string,
+  keepName: string,
+): T[] {
+  return sessions.filter(
+    (session) => session.name.startsWith(`${role}::rev-`) && session.name !== keepName,
+  );
+}
+
+export async function removeStaleExperiments(
+  api: Api,
+  datasetId: string,
+  experiment: ExperimentResult,
+): Promise<number> {
+  const sessions = await api.get<{ id: string; name: string }[]>("/sessions", {
+    name_contains: `${experiment.role}::rev-`,
+    reference_dataset: datasetId,
+  });
+  const stale = staleExperiments(sessions, experiment.role, experiment.name);
+  for (const session of stale) await api.delete(`/sessions/${session.id}`);
+  return stale.length;
 }
 
 export async function waitForScores(options: {

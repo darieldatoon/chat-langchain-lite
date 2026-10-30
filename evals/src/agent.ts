@@ -1,10 +1,22 @@
-import { ApiError, type Api } from "./api.ts";
+import { ApiError, createApi, type Api } from "./api.ts";
+import type { Config } from "./config.ts";
 
 export const ASSISTANT_ID = "chat-langchain-lite";
+// Mirrors the agent's output limit, so simulated users can spot answers that ran out of room.
+export const AGENT_OUTPUT_LIMIT = 900;
 export type Environment = "production" | "development";
 
 /** The agent only accepts OAuth tokens directly; a LangSmith API key needs the platform's scheme, as Studio and Engine send. */
 export const PLATFORM_SCHEME = { "x-auth-scheme": "langsmith" } as const;
+
+export function agentApi(config: Config, deployment: { readonly url: string }): Api {
+  return createApi({
+    baseUrl: deployment.url,
+    apiKey: config.apiKey,
+    workspaceId: config.workspaceId,
+    headers: PLATFORM_SCHEME,
+  });
+}
 
 export interface AgentRecord {
   readonly tag_value_id: string | null;
@@ -97,6 +109,8 @@ export function looksInformal(text: string): boolean {
 export interface AskOptions {
   readonly context?: Record<string, unknown>;
   readonly metadata?: Record<string, unknown>;
+  /** Continue this conversation instead of starting one. */
+  readonly threadId?: string;
 }
 
 export interface AskResult {
@@ -105,15 +119,15 @@ export interface AskResult {
   readonly answer: Answer;
 }
 
-/** One question on a fresh thread, waiting for the final state. */
+/** One question, on a fresh thread unless `threadId` is given, waiting for the final state. */
 export async function ask(
   agentApi: Api,
   question: string,
   options: AskOptions = {},
 ): Promise<AskResult> {
-  const thread = await agentApi.post<{ thread_id: string }>("/threads", {
-    metadata: options.metadata ?? {},
-  });
+  const thread = options.threadId
+    ? { thread_id: options.threadId }
+    : await agentApi.post<{ thread_id: string }>("/threads", { metadata: options.metadata ?? {} });
   const run = await agentApi.post<{ run_id: string }>(`/threads/${thread.thread_id}/runs`, {
     assistant_id: ASSISTANT_ID,
     input: { messages: [{ role: "user", content: question }] },

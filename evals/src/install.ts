@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { findDeployment, type Environment } from "./agent.ts";
-import { ApiError, createApi, type Api } from "./api.ts";
+import { createApi, type Api } from "./api.ts";
 import { readConfig } from "./config.ts";
 import {
   corsOrigins,
@@ -20,7 +20,16 @@ import {
   type GithubSource,
   type Secret,
 } from "./deployments.ts";
-import { branchProtection, originRepo, run, runSince, type WorkflowRun } from "./github.ts";
+import { ensureBoard } from "./engine.ts";
+import {
+  branchProtection,
+  MAINTAINERS_ENVIRONMENT,
+  maintainersEnvironment,
+  originRepo,
+  run,
+  runSince,
+  type WorkflowRun,
+} from "./github.ts";
 
 const log = (message: string) => console.log(`[install] ${message}`);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -34,13 +43,6 @@ interface DeployOptions {
   readonly secrets: readonly Secret[];
   readonly redeploy: boolean;
   readonly replace: boolean;
-}
-
-interface EngineBoard {
-  readonly github_repos?: readonly {
-    readonly repo_url: string;
-    readonly base_branch: string | null;
-  }[];
 }
 
 function gh(args: readonly string[], input?: string): string {
@@ -176,49 +178,23 @@ function disableCliDeployWorkflow(repo: string) {
   } catch {}
 }
 
-const repoSlug = (url: string) =>
-  url
-    .replace(/^https:\/\/github\.com\//, "")
-    .replace(/\.git$/, "")
-    .toLowerCase();
-
-/** Points the production board's fix verification at development's previews. Never creates a board: that starts a paid scan. */
-async function connectEngine(
-  api: Api,
-  repo: string,
-  production: DeploymentRecord,
-  development: DeploymentRecord,
-) {
-  const path = `/platform/sessions/${production.tracer_session_id}/issues-agent`;
-  let board: EngineBoard;
+/** Reset and Teardown wait in this environment for a maintainer's approval. Keeps reviewers someone already added. */
+function ensureMaintainersEnvironment(repo: string) {
+  const path = `repos/${repo}/environments/${MAINTAINERS_ENVIRONMENT}`;
   try {
-    board = await api.get<EngineBoard>(path);
-  } catch (error) {
-    if (!(error instanceof ApiError && error.status === 404)) throw error;
-    log(
-      "no Engine board on production. To verify Engine's fixes, create one (see the README), then re-run install.",
-    );
-    return;
-  }
-  // Engine verifies only fixes in the board's first repo.
-  const [first] = board.github_repos ?? [];
-  if (
-    !first ||
-    repoSlug(first.repo_url) !== repo.toLowerCase() ||
-    first.base_branch !== "development"
-  )
-    log(
-      `WARNING: the Engine board's first repo should be ${repo} with base branch development, or its fixes won't get previews.`,
-    );
-  await api.patch(path, {
-    validation_deployment_id: development.id,
-    preview_verify_enabled: true,
-    // Verification starts only once the fix has a PR; merge-guard holds it open.
-    auto_open_fix_pr: true,
-    // GitHub builds sync Context Hub into a repo named after the deployment.
-    context_hub_repo_handle: production.name,
-  });
-  log("Engine verifies its fixes on previews of development");
+    const current = JSON.parse(gh(["api", path])) as {
+      protection_rules?: readonly { type: string }[];
+    };
+    if (current.protection_rules?.some((rule) => rule.type === "required_reviewers")) return;
+  } catch {}
+  const me = JSON.parse(gh(["api", "user"])) as { id: number; login: string };
+  gh(
+    ["api", "-X", "PUT", path, "--input", "-", "--silent"],
+    JSON.stringify(maintainersEnvironment(me.id)),
+  );
+  log(
+    `Reset and Teardown wait for ${me.login}'s approval (environment ${MAINTAINERS_ENVIRONMENT})`,
+  );
 }
 
 async function main() {
@@ -274,6 +250,7 @@ async function main() {
   gh(["variable", "set", "LANGSMITH_WORKSPACE_ID", "-R", repo, "--body", config.workspaceId]);
   protectBranches(repo);
   disableCliDeployWorkflow(repo);
+  ensureMaintainersEnvironment(repo);
   ensurePages(repo);
 
   const organization = await api.get<{ id: string }>("/orgs/current");
@@ -318,7 +295,7 @@ async function main() {
   const { development, production } = deployed as Record<Environment, DeploymentRecord>;
   await hostApi.put(`/v2/deployments/${development.id}/preview-builds/config`, PREVIEW_CONFIG);
   log(`PRs into development labeled "${PREVIEW_CONFIG.trigger_label}" get a preview deployment`);
-  await connectEngine(api, repo, production, development);
+  await ensureBoard(api, { repo, production, development }, log);
 
   // Variable changes don't rebuild Pages, so always publish.
   await dispatchAndWait(repo, "pages.yml", "main");

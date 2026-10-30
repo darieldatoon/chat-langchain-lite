@@ -41,6 +41,18 @@ run = "mise run //evals:prepare"
 description = "Set up, deploy both environments from GitHub, publish Pages and prepare the demo: [--redeploy] [--replace]"
 run = ["mise run setup", "mise run //evals:install"]
 
+[tasks."demo:trickle"]
+description = "Send a few conversations with feedback to production, as the Trickle workflow does"
+run = "mise run //evals:trickle"
+
+[tasks."demo:check"]
+description = "Check the deployed demo end to end, as the Health workflow does"
+run = "mise run //evals:health"
+
+[tasks."demo:reset"]
+description = "Close Engine's fix PRs, replace its board and refresh the experiments; --yes does it"
+run = "mise run //evals:reset"
+
 [tasks."demo:uninstall"]
 description = "List everything the demo created in LANGSMITH_WORKSPACE_ID; --yes deletes it"
 run = "mise run //evals:uninstall"
