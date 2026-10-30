@@ -28,5 +28,6 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - `web/src/auth/`: OAuth (PKCE, refresh in the tab) and PAT sessions; each request asks the session for fresh headers.
 - `web/src/chat/turns.ts`: messages → render-ready turns (pure, tested).
 - `web/src/components/`: chat components copied from LangSmith's design system; keep upstream edits minimal.
-- `evals/src/install.ts`: creates both environments as GitHub-connected deployments, turns on previews for `development` and points the Engine board at it.
+- `evals/src/install.ts`: creates both environments as GitHub-connected deployments, turns on previews for `development` and creates the Engine board (`evals/src/engine.ts`).
+- `evals/src/trickle.ts`, `evals/src/check.ts` and `evals/src/reset.ts`: the Trickle, Health and Reset workflows. Reset never touches branches.
 - `evals/`: the prepare step (`src/prepare.ts`), the seed dataset and the hosted JavaScript evaluator. `evals/evaluators/cites-retrieved-docs.js` runs in LangSmith's sandbox: no imports, every helper inside `performEval`.

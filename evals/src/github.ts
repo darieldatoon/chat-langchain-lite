@@ -48,6 +48,12 @@ export function branchProtection() {
   };
 }
 
+export const MAINTAINERS_ENVIRONMENT = "maintainers";
+
+export function maintainersEnvironment(reviewerId: number) {
+  return { reviewers: [{ type: "User", id: reviewerId }], prevent_self_review: false };
+}
+
 export function checklist(repo: string): string[] {
   return [
     `GitHub ${repo}, Settings → Secrets and variables → Actions:`,
@@ -55,6 +61,7 @@ export function checklist(repo: string): string[] {
     "  secrets LANGSMITH_API_KEY (and LANGSMITH_GATEWAY_API_KEY, if an older install set it)",
     `GitHub ${repo}, Settings → Branches: the main and development protection rules`,
     `GitHub ${repo}, Settings → Pages: unpublish the site, then delete the github-pages environment`,
+    `GitHub ${repo}, Settings → Environments: the ${MAINTAINERS_ENVIRONMENT} environment`,
     "GitHub, Settings → Applications: LangSmith's and Engine's GitHub Apps, if nothing else uses them",
     "Local: agent/.env and mise.local.toml (your keys), agent/.mda/, evals/.prepare/",
   ];
