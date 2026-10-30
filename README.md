@@ -138,3 +138,7 @@ Reset and Teardown take a typed confirmation and wait in the `maintainers` envir
 ## Uninstall
 
 `mise run demo:uninstall` lists everything the demo created in the workspace, with what each evaluator is attached to. `mise run demo:uninstall -- --yes` deletes it in dependency order, re-checks, and lists what to remove by hand on GitHub and locally. It keeps the `LC_GATEWAY_KEY` workspace secret and the `user_score` feedback config, which other apps share.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
