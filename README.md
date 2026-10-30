@@ -50,6 +50,9 @@ Locally, `mda dev` doesn't enforce sign-in, so any value works on the sign-in pa
 | `mise run test` | Unit tests |
 | `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators and triage queue, send sample traffic, and pre-run the experiments |
 | `mise run demo:install` | Set up, create both environments as GitHub-connected deployments, turn on previews and Engine fix verification, publish Pages, then run `demo:prepare` |
+| `mise run demo:trickle` | Send a few conversations with feedback to production, as the Trickle workflow does |
+| `mise run demo:check` | Check the deployed demo end to end, as the Health workflow does |
+| `mise run demo:reset` | Show what a reset would do. `--yes` closes Engine's fix PRs, replaces its board and refreshes the experiments |
 | `mise run demo:uninstall` | List everything the demo created in the workspace. `--yes` deletes it |
 
 ## Evals
@@ -78,7 +81,7 @@ Each build syncs `agent/instructions.md` and `agent/skills/` to a Context Hub re
 
 `development` runs one commit ahead of `main` on purpose, so the demo has a candidate to compare against production. To release it, open a pull request from `development` into `main` and merge it with a merge commit. A squash merge leaves `development` looking ahead with nothing new. After anything lands on `main` directly, merge `main` back into `development`.
 
-A pull request into `development` labeled `preview` gets its own preview deployment. It's torn down when the pull request closes, or after 72 idle hours. Engine labels its fix pull requests this way, replays the issue's production traces against `development` and the preview, and shows on its board whether the fix worked.
+A pull request into `development` labeled `preview` gets its own preview deployment. It's torn down when the pull request closes. Engine labels its fix pull requests this way, replays the issue's production traces against `development` and the preview, and shows on its board whether the fix worked.
 
 The deployment type is fixed when a deployment is first created. Changing it later means deleting and recreating the deployment.
 
@@ -91,7 +94,8 @@ The deployment type is fixed when a deployment is first created. Changing it lat
    - protects `main` and `development`, and turns on GitHub Pages
    - creates both environments as GitHub-connected deployments and waits for their first build
    - sets the `VITE_AGENT_URL_DEVELOPMENT` and `VITE_AGENT_URL_PRODUCTION` variables, plus `VITE_LANGSMITH_ORGANIZATION_ID`, `VITE_LANGSMITH_SSO_SLUG` when the org uses SSO, and `VITE_OAUTH_CLIENT_ID` when `agent/.env` has one
-   - turns on previews for `development`, and points an existing Engine board at it
+   - turns on previews for `development`, and creates the Engine board on production (see [Engine fix verification](#engine-fix-verification))
+   - creates the `maintainers` environment, so the Reset and Teardown workflows wait for your approval
    - publishes Pages and runs `demo:prepare`
 
    Re-running skips what's done, but updates the deployments' secrets when they change; `--redeploy` rebuilds both environments. A workspace whose environments were deployed with the mda CLI needs `--replace` once: it deletes them and creates them again from GitHub, keeping their tracing projects and rules.
@@ -110,16 +114,25 @@ For local sign-in, put `VITE_OAUTH_CLIENT_ID=lsc_…`, `VITE_LANGSMITH_ORGANIZAT
 
 ### Engine fix verification
 
-Install doesn't create the Engine board, because creating one starts a paid scan. To set it up:
-
-1. Enable Engine on the `chat-langchain-lite-production` tracing project.
-2. Install Engine's GitHub App on your fork. It's a separate app from the deployments' one, and needs write access to checks, issues and pull requests.
-3. Add the fork as the board's first repo, with subdirectory `agent` and base branch `development`.
-4. Re-run `mise run demo:install`. It points the board at `development` and turns on fix verification.
+Install creates the Engine board on the `chat-langchain-lite-production` tracing project, which starts a paid scan. The board scans daily at the reduced level, up to 250 LCU a month, fixes `agent/` against `development`, and verifies each fix on its PR's preview. Before installing, install Engine's GitHub App on your fork. It's a separate app from the deployments' one, and needs write access to checks, issues and pull requests.
 
 Fix verification needs the `enable_engine_issue_validation` flag on the workspace.
 
 Engine's fix PRs can't be merged: the `merge-guard` check stays pending on them. Show the verdict instead.
+
+## Keeping the demo running
+
+Once installed, GitHub Actions keep the demo ready. They use the `LANGSMITH_API_KEY` repo secret; for a shared demo, make it a service key with the Editor role on the demo's workspace only.
+
+| Workflow | When | What it does |
+|---|---|---|
+| Trickle | Every 4 hours | A few conversations with production, some with a follow-up and feedback, so there are always recent traces and evidence for Engine |
+| Health | Daily | Checks the deployments, sign-in, Pages, the Gateway key, Engine and the schedules. While anything fails, one issue labeled `demo-health` stays open |
+| Reset | By hand, after approval | Closes Engine's fix PRs, replaces its board, sends traffic and refreshes the experiments. Branches stay as they are |
+| Teardown | By hand, after approval | Runs `demo:uninstall --yes` |
+| Prepare demo | By hand | Runs `demo:prepare` |
+
+Reset and Teardown take a typed confirmation and wait in the `maintainers` environment for approval. Other people may be mid-demo, so tell them first. To get Health's alerts in Slack, run `/github subscribe <owner>/<repo> issues +label:"demo-health"` in a channel.
 
 ## Uninstall
 

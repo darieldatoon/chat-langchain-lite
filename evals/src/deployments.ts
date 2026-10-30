@@ -12,8 +12,9 @@ export const PREVIEW_CONFIG = {
   trigger_mode: "label",
   trigger_label: "preview",
   preview_base_branch: null,
-  ttl_seconds: 259_200,
-  max_concurrent_previews: 5,
+  // Idle means no PR activity, which agent traffic doesn't count as. Fix PRs stay open until a reset.
+  ttl_seconds: null,
+  max_concurrent_previews: 10,
 } as const;
 
 export interface DeploymentRecord {

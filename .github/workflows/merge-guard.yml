@@ -1,7 +1,9 @@
 name: Merge guard
 
 on:
-  pull_request:
+  # pull_request gets a read-only token on PRs from forks, so their status could never be posted.
+  # Safe because this job never checks out or runs the PR's code.
+  pull_request_target:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:

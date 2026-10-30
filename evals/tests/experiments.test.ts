@@ -6,9 +6,9 @@ import {
   experimentName,
   isSameExperiment,
   OFFLINE_KEYS,
+  staleExperiments,
   waitForScores,
 } from "../src/experiments.ts";
-import { planThumbsDown } from "../src/traffic.ts";
 import { fakeApi } from "./fake-api.ts";
 
 describe("experimentName", () => {
@@ -69,26 +69,24 @@ describe("waitForScores", () => {
   });
 });
 
-describe("planThumbsDown", () => {
-  const result = (runId: string, outputTokens: number, text: string) => ({
-    runId,
-    threadId: "t",
-    answer: { text, outputTokens },
-  });
-
-  it("thumbs-down a few incomplete answers first, then a few informal ones", () => {
-    const plan = planThumbsDown(
-      [
-        result("a", 900, "cut"),
-        result("b", 400, "Nice 🚀"),
-        result("c", 900, "cut"),
-        result("d", 300, "Fine."),
-      ],
-      { outputLimit: 900, incompleteThumbsDown: 1, informalThumbsDown: 1 },
-    );
-    expect(plan).toEqual([
-      { runId: "a", comment: "It stops in the middle of the answer." },
-      { runId: "b", comment: "Not very professional for a docs assistant." },
+describe("staleExperiments", () => {
+  it("replaces only earlier experiments prepare ran for the same role", () => {
+    const sessions = [
+      { name: "production-baseline::rev-aaaa1111::data-20261018T022918" },
+      { name: "production-baseline::rev-bbbb2222::data-20261018T022918::retry-1" },
+      { name: "production-baseline::rev-bbbb2222::data-20261018T022918::retry-2" },
+      { name: "production-baseline-copy" },
+      { name: "my experiment with production-baseline::rev-x" },
+    ];
+    expect(
+      staleExperiments(
+        sessions,
+        "production-baseline",
+        "production-baseline::rev-bbbb2222::data-20261018T022918::retry-2",
+      ).map((session) => session.name),
+    ).toEqual([
+      "production-baseline::rev-aaaa1111::data-20261018T022918",
+      "production-baseline::rev-bbbb2222::data-20261018T022918::retry-1",
     ]);
   });
 });

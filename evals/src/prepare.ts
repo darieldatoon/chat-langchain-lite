@@ -2,8 +2,15 @@ import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
-import { ASSISTANT_ID, ask, findDeployment, PLATFORM_SCHEME, type Deployment } from "./agent.ts";
-import { createApi, type Api } from "./api.ts";
+import {
+  AGENT_OUTPUT_LIMIT,
+  agentApi,
+  ASSISTANT_ID,
+  ask,
+  findDeployment,
+  type Deployment,
+} from "./agent.ts";
+import { createApi } from "./api.ts";
 import { developmentGap, parseGitHubRepo } from "./branches.ts";
 import { readConfig, type Config } from "./config.ts";
 import { seedDataset, type SeedExample } from "./dataset.ts";
@@ -20,7 +27,13 @@ import {
   type EnsureResult,
   type RuleTarget,
 } from "./evaluators.ts";
-import { EXPERIMENTS, runExperiment, waitForScores, type ExperimentResult } from "./experiments.ts";
+import {
+  EXPERIMENTS,
+  removeStaleExperiments,
+  runExperiment,
+  waitForScores,
+  type ExperimentResult,
+} from "./experiments.ts";
 import { tagAgentResources } from "./tags.ts";
 import { sendTraffic } from "./traffic.ts";
 import { ensureTriage } from "./triage.ts";
@@ -29,8 +42,6 @@ import { ensureTriage } from "./triage.ts";
 const STEPS = ["readiness", "evaluators", "triage", "traffic", "experiments"] as const;
 type Step = (typeof STEPS)[number];
 
-// Mirrors the agent's output limit, so simulated users can spot answers that ran out of room.
-const AGENT_OUTPUT_LIMIT = 900;
 const root = new URL("../", import.meta.url);
 
 function log(line: string) {
@@ -39,15 +50,6 @@ function log(line: string) {
 
 async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(new URL(path, root), "utf8")) as T;
-}
-
-function agentApi(config: Config, deployment: Deployment): Api {
-  return createApi({
-    baseUrl: deployment.url,
-    apiKey: config.apiKey,
-    workspaceId: config.workspaceId,
-    headers: PLATFORM_SCHEME,
-  });
 }
 
 /** Wakes both deployments (`dev` deployments scale to zero) and fails fast if one is down. */
@@ -93,6 +95,7 @@ async function main() {
       concurrency: { type: "string", default: "4" },
       split: { type: "string" },
       roles: { type: "string" },
+      refresh: { type: "boolean", default: false },
     },
   });
   const steps = new Set<Step>(
@@ -202,6 +205,7 @@ async function main() {
       outputLimit: AGENT_OUTPUT_LIMIT,
       incompleteThumbsDown: 5,
       informalThumbsDown: 3,
+      okThumbsUp: 0,
       concurrency,
     });
     log(`traffic: ${JSON.stringify(summary)}`);
@@ -225,13 +229,14 @@ async function main() {
           asOf: dataset.baselineAsOf,
           concurrency,
           split: values.split,
+          fresh: values.refresh,
           log,
         }),
       );
     }
     manifest.experiments = experiments;
     if (!values["skip-wait"]) {
-      manifest.completion = await waitForScores({
+      const completion = await waitForScores({
         api,
         experiments,
         timeoutMs: 15 * 60_000,
@@ -240,6 +245,15 @@ async function main() {
         now: Date.now,
         log,
       });
+      manifest.completion = completion;
+      // Only a complete run replaces the experiments a DE might be comparing against.
+      if (values.refresh) {
+        for (const experiment of experiments) {
+          if (!completion[experiment.role]?.complete) continue;
+          const removed = await removeStaleExperiments(api, dataset.id, experiment);
+          log(`${experiment.role}: removed ${removed} older experiment(s)`);
+        }
+      }
     }
   }
 
