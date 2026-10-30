@@ -251,6 +251,8 @@ async function main() {
   protectBranches(repo);
   disableCliDeployWorkflow(repo);
   ensureMaintainersEnvironment(repo);
+  // Forks start with issues off, and Health reports problems in one.
+  gh(["repo", "edit", repo, "--enable-issues"]);
   ensurePages(repo);
 
   const organization = await api.get<{ id: string }>("/orgs/current");

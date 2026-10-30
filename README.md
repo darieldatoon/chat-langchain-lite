@@ -96,6 +96,7 @@ The deployment type is fixed when a deployment is first created. Changing it lat
    - sets the `VITE_AGENT_URL_DEVELOPMENT` and `VITE_AGENT_URL_PRODUCTION` variables, plus `VITE_LANGSMITH_ORGANIZATION_ID`, `VITE_LANGSMITH_SSO_SLUG` when the org uses SSO, and `VITE_OAUTH_CLIENT_ID` when `agent/.env` has one
    - turns on previews for `development`, and creates the Engine board on production (see [Engine fix verification](#engine-fix-verification))
    - creates the `maintainers` environment, so the Reset and Teardown workflows wait for your approval
+   - turns on issues, where the Health workflow reports problems
    - publishes Pages and runs `demo:prepare`
 
    Re-running skips what's done, but updates the deployments' secrets when they change; `--redeploy` rebuilds both environments. A workspace whose environments were deployed with the mda CLI needs `--replace` once: it deletes them and creates them again from GitHub, keeping their tracing projects and rules.
