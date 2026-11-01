@@ -91,15 +91,20 @@ export function langsmithSignIn(options: {
   );
 
   let renewal: Promise<User | null> | null = null;
+  let signedOut = false;
+  const signedOutError = () => new Error("You're signed out. Reload to sign in again.");
+  // Every await can resume after sign-out started, so check again before starting or using a refresh.
   const accessToken = async () => {
+    if (signedOut) throw signedOutError();
     const user = await manager.getUser();
-    if (!user) throw new Error("You're signed out. Reload to sign in again.");
+    if (!user || signedOut) throw signedOutError();
     if ((user.expires_in ?? 0) > RENEW_WITHIN_SECONDS) return user.access_token;
     // Refresh tokens rotate, and LangSmith revokes them all when one is reused.
     renewal ??= manager.signinSilent().finally(() => {
       renewal = null;
     });
     const renewed = await renewal.catch(() => null);
+    if (signedOut) throw signedOutError();
     if (!renewed) {
       await manager.removeUser();
       throw new Error("Your LangSmith sign-in expired. Reload to sign in again.");
@@ -107,9 +112,15 @@ export function langsmithSignIn(options: {
     return renewed.access_token;
   };
 
+  // A refresh still in flight would store a new session after sign-out, so wait for it and revoke the newest token.
   const forget = async () => {
-    await manager.revokeTokens(["refresh_token"]).catch(() => undefined);
-    await manager.removeUser();
+    signedOut = true;
+    try {
+      await renewal?.catch(() => undefined);
+      await manager.revokeTokens(["refresh_token"]).catch(() => undefined);
+    } finally {
+      await manager.removeUser();
+    }
   };
   const session: Session = {
     kind: "langsmith",

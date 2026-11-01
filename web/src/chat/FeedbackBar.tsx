@@ -5,7 +5,7 @@ import { Text } from "@langchain/macaw-components/Text";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr/ArrowSquareOut";
 import { ThumbsDownIcon } from "@phosphor-icons/react/dist/ssr/ThumbsDown";
 import { ThumbsUpIcon } from "@phosphor-icons/react/dist/ssr/ThumbsUp";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { saveFeedback } from "./langsmith";
 
@@ -25,8 +25,14 @@ export function FeedbackBar({ runId, deps }: FeedbackBarProps) {
   const [vote, setVote] = useState<Vote | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // A ref, not state: a second click in the same frame would still see the old state and post a second vote.
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   const submit = async (score: 0 | 1, comment = vote?.comment ?? "") => {
+    if (saving.current) return;
+    saving.current = true;
+    setBusy(true);
     setError(null);
     try {
       const feedbackId = await saveFeedback(
@@ -37,6 +43,9 @@ export function FeedbackBar({ runId, deps }: FeedbackBarProps) {
       setVote({ score, feedbackId, comment });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't save feedback");
+    } finally {
+      saving.current = false;
+      setBusy(false);
     }
   };
 
@@ -49,6 +58,7 @@ export function FeedbackBar({ runId, deps }: FeedbackBarProps) {
           size="sm"
           variant={vote?.score === 1 ? "outlined" : "plain"}
           color={vote?.score === 1 ? "primary" : "secondary"}
+          disabled={busy}
           onClick={() => void submit(1)}
         />
         <IconButton
@@ -57,6 +67,7 @@ export function FeedbackBar({ runId, deps }: FeedbackBarProps) {
           size="sm"
           variant={vote?.score === 0 ? "outlined" : "plain"}
           color={vote?.score === 0 ? "error" : "secondary"}
+          disabled={busy}
           onClick={() => void submit(0)}
         />
         <IconButton
@@ -89,7 +100,7 @@ export function FeedbackBar({ runId, deps }: FeedbackBarProps) {
             onChange={setDraft}
             className="flex-1"
           />
-          <Button size="sm" variant="outlined" type="submit" disabled={!draft.trim()}>
+          <Button size="sm" variant="outlined" type="submit" disabled={busy || !draft.trim()}>
             Send
           </Button>
         </form>

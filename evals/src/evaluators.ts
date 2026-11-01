@@ -9,6 +9,9 @@ export const ONLINE_FILTER = 'and(eq(is_root, true), neq(metadata_key, "ls_exper
 // Adding an assertions example from an annotation queue auto-creates a rule unless one with this
 // exact display name already exists (smith-frontend ensureAssertionsRule.ts).
 export const ASSERTIONS_RULE_NAME = "Assertions (auto-attached)";
+const TONE_RULE_NAME = "professional_tone";
+const CITES_RULE_NAME = "cites_retrieved_docs";
+const TRAJECTORY_RULE_NAME = "trajectory_accuracy";
 
 // The built-in Assertions template (smith-frontend prebuilts/assertions.ts), in mustache form.
 export const ASSERTIONS_PROMPT = `You are an expert data labeler evaluating whether a model output satisfies a set of explicit assertions. Your task is to evaluate each assertion independently and assign a score based on the following rubric:
@@ -74,6 +77,15 @@ export const TONE_QUESTION =
   "Does the assistant's final answer read like professional technical documentation, with no emoji, no slang or hype, and product names written in full?";
 
 export const TONE_LLM_RULE_NAME = "professional_tone_llm";
+
+/** Every evaluator this demo creates. Teardown deletes only these, never one someone else attached. */
+export const DEMO_EVALUATOR_NAMES: readonly string[] = [
+  ASSERTIONS_RULE_NAME,
+  TONE_RULE_NAME,
+  TONE_LLM_RULE_NAME,
+  CITES_RULE_NAME,
+  TRAJECTORY_RULE_NAME,
+];
 
 // Deliberately generic: the demo sharpens it in the Evaluator Playground against human labels.
 export const TONE_LLM_PROMPT = `You are reviewing an answer from a documentation assistant for LangChain, LangGraph, LangSmith and Deep Agents.
@@ -193,7 +205,7 @@ export function assertionsRule(datasetId: string, judge: JudgeModel): RuleBody {
 
 export function toneRule(datasetId: string, gatewaySecret = "LC_GATEWAY_KEY"): RuleBody {
   return {
-    display_name: "professional_tone",
+    display_name: TONE_RULE_NAME,
     dataset_id: datasetId,
     sampling_rate: 1,
     is_enabled: true,
@@ -260,7 +272,7 @@ export function toneLlmRule(datasetId: string, gatewaySecret = "LC_GATEWAY_KEY")
 
 export function citesRule(datasetId: string, code: string): RuleBody {
   return {
-    display_name: "cites_retrieved_docs",
+    display_name: CITES_RULE_NAME,
     dataset_id: datasetId,
     sampling_rate: 1,
     is_enabled: true,
@@ -271,7 +283,7 @@ export function citesRule(datasetId: string, code: string): RuleBody {
 /** Online only: trajectory rules can't use datasets, code evaluators, few-shot or alignment. */
 export function trajectoryRule(sessionId: string, judge: JudgeModel): RuleBody {
   return {
-    display_name: "trajectory_accuracy",
+    display_name: TRAJECTORY_RULE_NAME,
     session_id: sessionId,
     filter: ONLINE_FILTER,
     group_by: "trajectory_id",
