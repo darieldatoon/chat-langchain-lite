@@ -64,9 +64,18 @@ export function ChatShell({
     });
   // Bumped only by user navigation, so assigning an id to a brand-new thread doesn't remount the stream.
   const [session, setSession] = useState(0);
+  // Back and Forward change the thread without go(), so remount for any thread change except that id assignment.
+  const [adopted, setAdopted] = useState<string | null>(null);
+  const [shown, setShown] = useState({ threadId, version: 0, isNew: false });
+  if (shown.threadId !== threadId) {
+    const isNew = shown.threadId === null && threadId === adopted;
+    setShown({ threadId, version: isNew ? shown.version : shown.version + 1, isNew });
+    // Used once: coming back to this thread later (New chat, then Back) must load its history.
+    if (isNew) setAdopted(null);
+  }
 
   const { threads, threadsError, refreshThreads } = useThreads(client, auth.ownerId);
-  const { runIds, addLiveRun } = useRunIds(client, threadId);
+  const { runIds, runsLoaded, addLiveRun } = useRunIds(client, threadId, shown.isNew);
   const feedback = useFeedbackDeps(config.workspaceId, environment, auth);
   // The server creates a new thread together with its first run, so its title waits for that run.
   const pendingTitle = useRef<{ threadId: string; title: string } | null>(null);
@@ -149,13 +158,15 @@ export function ChatShell({
         />
         <main className="min-h-0 flex-1">
           <ChatView
-            key={`${environment.id}:${session}`}
+            key={`${environment.id}:${session}:${shown.version}`}
             environment={environment}
             client={client}
             threadId={threadId}
             runIds={runIds}
+            runsLoaded={runsLoaded}
             feedback={feedback}
             onThreadId={(id, firstMessage) => {
+              setAdopted(id);
               onNavigate({ environment: environment.id, threadId: id }, { replace: true });
               if (firstMessage)
                 pendingTitle.current = { threadId: id, title: toTitle(firstMessage) };
@@ -256,27 +267,30 @@ function useThreads(client: Client, ownerId: string | undefined) {
   return { threads, threadsError, refreshThreads };
 }
 
-function useRunIds(client: Client, threadId: string | null) {
-  const [history, setHistory] = useState<{ run_id: string; created_at: string }[]>([]);
+function useRunIds(client: Client, threadId: string | null, isNew: boolean) {
+  // Null until the thread's earlier runs load; it stays null if they can't, since runs pair with turns by position.
+  const [history, setHistory] = useState<{ run_id: string; created_at: string }[] | null>([]);
   const [live, setLive] = useState<string[]>([]);
 
   useEffect(() => {
+    // A thread this tab just started has no earlier runs, and the server may not have created it yet (404).
+    if (isNew) return setHistory([]);
     setLive([]);
-    setHistory([]);
+    setHistory(threadId ? null : []);
     if (!threadId) return;
     let cancelled = false;
     client.runs
       .list(threadId, { limit: 100 })
       .then((runs) => !cancelled && setHistory(runs))
-      .catch(() => !cancelled && setHistory([]));
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [client, threadId]);
+  }, [client, threadId, isNew]);
 
-  const runIds = useMemo(() => mergeRunIds(history, live), [history, live]);
+  const runIds = useMemo(() => mergeRunIds(history ?? [], live), [history, live]);
   const addLiveRun = useCallback((runId: string) => setLive((ids) => [...ids, runId]), []);
-  return { runIds, addLiveRun };
+  return { runIds, runsLoaded: history !== null, addLiveRun };
 }
 
 function useFeedbackDeps(
@@ -294,7 +308,11 @@ function useFeedbackDeps(
         const tab = window.open("about:blank", "_blank");
         let projectId = projectIds.current.get(environment.projectName);
         if (!projectId) {
-          projectId = findProjectId(deps, environment.projectName).catch(() => null);
+          projectId = findProjectId(deps, environment.projectName).catch(() => {
+            // Forget the failure so the next click tries again.
+            projectIds.current.delete(environment.projectName);
+            return null;
+          });
           projectIds.current.set(environment.projectName, projectId);
         }
         void projectId.then((id) => {

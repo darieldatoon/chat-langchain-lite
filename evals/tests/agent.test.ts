@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { contentText, finalAnswer, looksInformal, usedWholeBudget } from "../src/agent.ts";
+import { contentText, finalAnswer, joinRun, looksInformal, usedWholeBudget } from "../src/agent.ts";
+import { fakeApi } from "./fake-api.ts";
 
 describe("finalAnswer", () => {
   it("reads the last AI message's text and output tokens from blocks or strings", () => {
@@ -29,5 +30,17 @@ describe("usedWholeBudget / looksInformal", () => {
   it("flags emoji as informal", () => {
     expect(looksInformal("Have fun! 🚀")).toBe(true);
     expect(looksInformal("A checkpointer saves state.")).toBe(false);
+  });
+});
+
+describe("joinRun", () => {
+  it("returns the final state, and throws when the run failed even though the join answered 200", async () => {
+    const api = fakeApi(({ path }) =>
+      path.includes("/runs/ok/")
+        ? { messages: [] }
+        : { __error__: { error: "RuntimeError", message: "model call failed" } },
+    );
+    await expect(joinRun(api, "t", "ok")).resolves.toEqual({ messages: [] });
+    await expect(joinRun(api, "t", "bad")).rejects.toThrow(/model call failed/);
   });
 });

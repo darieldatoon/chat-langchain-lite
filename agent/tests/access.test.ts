@@ -1,7 +1,7 @@
 import type { ManagedServerInfo } from "managed-deepagents";
 import { describe, expect, it } from "vitest";
 
-import { accessPolicy, refusal } from "../access.js";
+import { accessMiddleware, accessPolicy, refusal } from "../access.js";
 
 const policy = accessPolicy({ ALLOWED_ORGANIZATION_ID: "org-1", OAUTH_CLIENT_ID: "lsc_1" });
 
@@ -39,4 +39,25 @@ describe("refusal", () => {
     } as unknown as ManagedServerInfo;
     expect(refusal(policy, studio)).toBeNull();
   });
+});
+
+describe("accessMiddleware", () => {
+  const outsider = oauthCaller({ organization_id: "org-2", client_id: "lsc_1" });
+  const member = oauthCaller({ organization_id: "org-1", client_id: "lsc_1" });
+  type Hook = (request: unknown, handler: (request: unknown) => unknown) => unknown;
+  const hooks = accessMiddleware(policy) as unknown as Record<
+    "wrapModelCall" | "wrapToolCall",
+    Hook
+  >;
+
+  it.each(["wrapModelCall", "wrapToolCall"] as const)(
+    "%s refuses outsiders, so a run that skips beforeAgent still can't reach the model or tools",
+    (name) => {
+      const handler = () => "called";
+      expect(() => hooks[name]({ runtime: { serverInfo: outsider } }, handler)).toThrow(
+        /organization/,
+      );
+      expect(hooks[name]({ runtime: { serverInfo: member } }, handler)).toBe("called");
+    },
+  );
 });

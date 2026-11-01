@@ -32,13 +32,25 @@ export function refusal(
   return null;
 }
 
+// Every hook checks: a run's input can `goto` past beforeAgent straight to the model or tools.
 export function accessMiddleware(policy: AccessPolicy) {
+  const check = (runtime: unknown) => {
+    const reason = refusal(policy, (runtime as { serverInfo?: ManagedServerInfo }).serverInfo);
+    if (reason) throw new Error(reason);
+  };
   return createMiddleware({
     name: "access",
     beforeAgent: (_state, runtime) => {
-      const reason = refusal(policy, (runtime as { serverInfo?: ManagedServerInfo }).serverInfo);
-      if (reason) throw new Error(reason);
+      check(runtime);
       return undefined;
+    },
+    wrapModelCall: (request, handler) => {
+      check(request.runtime);
+      return handler(request);
+    },
+    wrapToolCall: (request, handler) => {
+      check(request.runtime);
+      return handler(request);
     },
   });
 }

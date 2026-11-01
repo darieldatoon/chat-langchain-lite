@@ -3,7 +3,7 @@ import { useStream } from "@langchain/react";
 import { Banner } from "@langchain/macaw-components/Banner";
 import { Button } from "@langchain/macaw-components/Button";
 import { Text } from "@langchain/macaw-components/Text";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { ChatConversation } from "../components/ChatConversation";
 import { ChatMessage, type ChatMessageContentBlock } from "../components/ChatMessage";
@@ -31,6 +31,8 @@ interface ChatViewProps {
   readonly client: Client;
   readonly threadId: string | null;
   readonly runIds: readonly string[];
+  /** Whether the thread's earlier runs have loaded, so `runIds[i]` is turn i's run. */
+  readonly runsLoaded: boolean;
   readonly feedback: FeedbackDeps;
   /** Fires once when the agent creates the thread; `firstMessage` seeds its title. */
   readonly onThreadId: (threadId: string, firstMessage: string) => void;
@@ -39,9 +41,17 @@ interface ChatViewProps {
 }
 
 export function ChatView(props: ChatViewProps) {
-  const { environment, client, threadId, runIds, feedback } = props;
+  const { environment, client, threadId, runIds, runsLoaded, feedback } = props;
   const [sendError, setSendError] = useState<string | null>(null);
   const lastSent = useRef("");
+  // The SDK still reports a run created after the user switched threads; it belongs to the old one.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const stream = useStream({
     client,
@@ -50,7 +60,7 @@ export function ChatView(props: ChatViewProps) {
     transport: "sse",
     threadId,
     onThreadId: (id) => props.onThreadId(id, lastSent.current),
-    onCreated: ({ runId }) => runId && props.onRunCreated(runId),
+    onCreated: ({ runId }) => runId && mounted.current && props.onRunCreated(runId),
     onCompleted: props.onRunFinished,
   });
 
@@ -89,7 +99,7 @@ export function ChatView(props: ChatViewProps) {
           <TurnView
             key={turn.id}
             turn={turn}
-            runId={runIds[index]}
+            runId={runsLoaded ? runIds[index] : undefined}
             streaming={stream.isLoading && index === turns.length - 1}
             feedback={feedback}
           />
@@ -148,7 +158,11 @@ function TurnView({
             identity: { name: "Chat LangChain Lite" },
             content: blocks,
           }}
-          footer={!streaming && runId ? <FeedbackBar runId={runId} deps={feedback} /> : undefined}
+          footer={
+            !streaming && runId ? (
+              <FeedbackBar key={runId} runId={runId} deps={feedback} />
+            ) : undefined
+          }
         />
       ) : null}
     </div>

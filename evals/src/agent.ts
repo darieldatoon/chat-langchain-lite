@@ -119,6 +119,20 @@ export interface AskResult {
   readonly answer: Answer;
 }
 
+/** Waits for a run's final state. A failed run still answers 200, with `__error__` in place of the state. */
+export async function joinRun<State extends object>(
+  agentApi: Api,
+  threadId: string,
+  runId: string,
+): Promise<State> {
+  const state = await agentApi.get<State & { __error__?: { message?: string } }>(
+    `/threads/${threadId}/runs/${runId}/join`,
+  );
+  if (state.__error__)
+    throw new Error(`Run ${runId} failed: ${state.__error__.message ?? "unknown error"}`);
+  return state;
+}
+
 /** One question, on a fresh thread unless `threadId` is given, waiting for the final state. */
 export async function ask(
   agentApi: Api,
@@ -134,8 +148,10 @@ export async function ask(
     context: options.context,
     metadata: options.metadata,
   });
-  const state = await agentApi.get<{ messages?: AgentMessage[] }>(
-    `/threads/${thread.thread_id}/runs/${run.run_id}/join`,
+  const state = await joinRun<{ messages?: AgentMessage[] }>(
+    agentApi,
+    thread.thread_id,
+    run.run_id,
   );
   return {
     runId: run.run_id,

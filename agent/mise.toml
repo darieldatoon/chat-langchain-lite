@@ -4,7 +4,12 @@ run = "node_modules/.bin/mda dev . --port 2024"
 
 [tasks.check]
 description = "Format check, lint and typecheck"
-run = ["pnpm run fmt:check", "pnpm run lint", "pnpm run typecheck"]
+run = [
+  "node ../scripts/check-agent-manifest.mjs",
+  "pnpm run fmt:check",
+  "pnpm run lint",
+  "pnpm run typecheck",
+]
 
 [tasks.test]
 description = "Unit tests"
