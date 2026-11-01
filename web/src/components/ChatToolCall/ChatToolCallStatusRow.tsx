@@ -41,7 +41,7 @@ export function ChatToolCallStatusRow({
             color="secondary"
             aria-label={`${groupLabel}: Click to view detailed trace`}
             onClick={onInspect}
-            className="focus-visible:ring-focus flex h-auto w-full flex-wrap items-center gap-space-1 rounded-md border-0 px-space-1 py-0 text-left transition-colors duration-fast hover:bg-surface-level-2 focus-visible:outline-none focus-visible:ring-2 motion-reduce:transition-none dark:hover:bg-surface-level-2"
+            className="focus-visible:ring-focus flex h-auto w-full flex-wrap items-center gap-space-1 rounded-md border-0 px-space-1 py-0 text-left transition-colors duration-fast hover:bg-surface-level-2 focus-visible:outline-hidden focus-visible:ring-2 motion-reduce:transition-none dark:hover:bg-surface-level-2"
           >
             {content}
           </Button>
