@@ -85,7 +85,7 @@ export function ChatConversationListItem({
         aria-current={selected ? "true" : undefined}
         aria-describedby={describedBy}
         disabled={disabled}
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-space-2 rounded-md border-2 border-transparent bg-transparent px-space-3 py-space-2 text-left outline-none focus-visible:border-focus disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-space-2 rounded-md border-2 border-transparent bg-transparent px-space-3 py-space-2 text-left outline-hidden focus-visible:border-focus disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Text
           as="span"
