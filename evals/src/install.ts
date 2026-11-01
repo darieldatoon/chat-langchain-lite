@@ -228,7 +228,7 @@ async function main() {
     try {
       gh(["api", `repos/${repo}/branches/${branch}`, "--silent"]);
     } catch {
-      throw new Error(`${repo} has no ${branch} branch. See the README's Fork setup, step 1.`);
+      throw new Error(`${repo} has no ${branch} branch. See the README's Contributing, step 1.`);
     }
   }
   const source = await findGithubSource(hostApi, repo);
