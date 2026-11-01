@@ -1,6 +1,9 @@
+import { readFile } from "node:fs/promises";
+
 import { ASSISTANT_ID, findAgent } from "./agent.ts";
 import { ApiError, type Api } from "./api.ts";
 import { DATASET_NAME } from "./dataset.ts";
+import { DEMO_EVALUATOR_NAMES } from "./evaluators.ts";
 import { QUEUE_NAME } from "./triage.ts";
 
 const ENVIRONMENTS = ["local", "development", "staging", "production"] as const;
@@ -9,10 +12,32 @@ const DEPLOYED_ENVIRONMENTS = ["development", "production"] as const;
 const LEGACY_CONTEXT_HUB_REPOS = [ASSISTANT_ID, `${ASSISTANT_ID}-development`];
 // Deleting a GitHub-sourced deployment also deletes its Context Hub repo when the build tagged it this way.
 const GITHUB_SOURCED_HUB_TAG = "managed-deepagents:github";
-// LangSmith names what it creates for an evaluator after the rule's parent: "Evaluator: <dataset or project>:<rule> …".
-const EVALUATOR_RESOURCE_PREFIX = `Evaluator: ${ASSISTANT_ID}`;
-const EVAL_PROMPT_PREFIX = `eval_${ASSISTANT_ID.replaceAll("-", "_")}_`;
-const FEEDBACK_KEY = "answer_ok";
+// LangSmith names what it creates for an evaluator after the rule's parent (our dataset or a tracing project) and the
+// rule: "Evaluator: <parent>:<rule> (…" and "eval_<parent>_<rule>_…". Match whole pairs: other installs in a shared
+// workspace use names that start with ours, such as chat-langchain-lite-<name>-production.
+const RULE_PARENTS = [
+  DATASET_NAME,
+  ...ENVIRONMENTS.map((environment) => `${ASSISTANT_ID}-${environment}`),
+];
+const asPromptName = (value: string) =>
+  value
+    .toLowerCase()
+    .replaceAll(" ", "_")
+    .replaceAll("-", "_")
+    .replace(/[^a-z0-9_]/g, "");
+const EVALUATOR_RESOURCE_PREFIXES = RULE_PARENTS.flatMap((parent) =>
+  DEMO_EVALUATOR_NAMES.map((rule) => `Evaluator: ${parent}:${rule} (`),
+);
+// The backend ends each handle with 8 hex characters; matching them stops "professional_tone" from claiming "professional_tone_custom".
+const EVAL_PROMPT_NAMES = RULE_PARENTS.flatMap((parent) =>
+  DEMO_EVALUATOR_NAMES.map((rule) => asPromptName(`eval_${parent}_${rule}_`)),
+);
+export const isDemoEvaluatorResource = (name: string) =>
+  EVALUATOR_RESOURCE_PREFIXES.some((prefix) => name.startsWith(prefix));
+export const isDemoEvaluatorPrompt = (handle: string) =>
+  EVAL_PROMPT_NAMES.some(
+    (prefix) => handle.startsWith(prefix) && /^[0-9a-f]{8}$/.test(handle.slice(prefix.length)),
+  );
 
 export interface Removal {
   readonly api: "smith" | "host";
@@ -27,6 +52,8 @@ export interface Item {
   readonly detail?: string;
   readonly removal?: Removal;
   readonly removedWith?: string;
+  /** Items that must be deleted first; if any of their deletes fails, this one is kept. */
+  readonly dependsOn?: readonly string[];
 }
 
 export interface Inventory {
@@ -41,7 +68,6 @@ export interface Inventory {
   readonly rules: readonly Item[];
   readonly prompts: readonly Item[];
   readonly queues: readonly Item[];
-  readonly feedbackConfigs: readonly Item[];
 }
 
 export type Section = keyof Inventory;
@@ -58,7 +84,6 @@ const TITLES: Record<Section, string> = {
   rules: "Rules (automations)",
   prompts: "Evaluator prompts",
   queues: "Annotation queues",
-  feedbackConfigs: "Feedback configs",
 };
 
 const DISPLAY_ORDER: readonly Section[] = [
@@ -73,7 +98,6 @@ const DISPLAY_ORDER: readonly Section[] = [
   "prompts",
   "referenceDatasets",
   "queues",
-  "feedbackConfigs",
 ];
 
 // Nothing cascades downward, so dependents go first. A prompt deleted before its evaluator strands the evaluator where
@@ -85,7 +109,6 @@ export const DELETION_ORDER: readonly Section[] = [
   "referenceDatasets",
   "queues",
   "datasets",
-  "feedbackConfigs",
   "contextHubRepos",
   "deployments",
   "agent",
@@ -109,6 +132,24 @@ export function deletionPlan(inventory: Inventory): PlannedRemoval[] {
       item.removal ? [{ section, item, removal: item.removal }] : [],
     ),
   );
+}
+
+export type Outcome = "deleted" | "already gone" | "failed" | "kept";
+
+/** Runs the plan in order. An item whose dependency failed to delete is kept: deleting it would strand that dependency. */
+export async function executePlan(
+  plan: readonly PlannedRemoval[],
+  remove: (step: PlannedRemoval) => Promise<Exclude<Outcome, "kept">>,
+): Promise<{ step: PlannedRemoval; outcome: Outcome }[]> {
+  const failed = new Set<string>();
+  const results: { step: PlannedRemoval; outcome: Outcome }[] = [];
+  for (const step of plan) {
+    const blocked = step.item.dependsOn?.some((id) => failed.has(id));
+    const outcome = blocked ? "kept" : await remove(step);
+    if (outcome === "failed" || outcome === "kept") failed.add(step.item.id);
+    results.push({ step, outcome });
+  }
+  return results;
 }
 
 export function isEmpty(inventory: Inventory): boolean {
@@ -154,7 +195,16 @@ interface EvaluatorRecord {
     readonly annotation_queue_id?: string | null;
     readonly corrections_dataset_id?: string | null;
   } | null;
-  readonly code_evaluator?: object | null;
+  readonly code_evaluator?: { readonly code?: string } | null;
+}
+
+async function allPages<T>(page: (offset: number) => Promise<T[]>, limit = 100): Promise<T[]> {
+  const items: T[] = [];
+  for (let offset = 0; ; offset += limit) {
+    const batch = await page(offset);
+    items.push(...batch);
+    if (batch.length < limit) return items;
+  }
 }
 
 interface Named {
@@ -271,17 +321,22 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
     (dataset) => dataset.name === DATASET_NAME,
   );
   const prefixed = (
-    await api.get<Named[]>("/datasets", { name_contains: EVALUATOR_RESOURCE_PREFIX, limit: 100 })
-  ).filter((dataset) => dataset.name.startsWith(EVALUATOR_RESOURCE_PREFIX));
+    await api.get<Named[]>("/datasets", { name_contains: `Evaluator: ${ASSISTANT_ID}`, limit: 100 })
+  ).filter((dataset) => isDemoEvaluatorResource(dataset.name));
 
-  const rules: RuleRecord[] = [];
+  const projectRules: RuleRecord[] = [];
   for (const project of projects)
-    rules.push(...(await api.get<RuleRecord[]>("/runs/rules", { session_id: project.id })));
+    projectRules.push(...(await api.get<RuleRecord[]>("/runs/rules", { session_id: project.id })));
+  const datasetRules = new Map<string, RuleRecord[]>();
   for (const dataset of [mainDataset, ...prefixed].filter(Boolean))
-    rules.push(...(await api.get<RuleRecord[]>("/runs/rules", { dataset_id: dataset!.id })));
+    datasetRules.set(
+      dataset!.id,
+      await api.get<RuleRecord[]>("/runs/rules", { dataset_id: dataset!.id }),
+    );
+  const discoveredRules = [...projectRules, ...[...datasetRules.values()].flat()];
 
   const evaluatorIds = new Set(
-    rules.flatMap((rule) => (rule.evaluator_id ? [rule.evaluator_id] : [])),
+    discoveredRules.flatMap((rule) => (rule.evaluator_id ? [rule.evaluator_id] : [])),
   );
   const listed = await api.get<{ evaluators: { id: string }[] }>("/platform/evaluators", {
     agent_id: ASSISTANT_ID,
@@ -289,21 +344,58 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
   });
   for (const evaluator of listed.evaluators) evaluatorIds.add(evaluator.id);
   const evaluatorRecords: EvaluatorRecord[] = [];
+  const visibleEvaluators = new Set<string>();
+  // What evaluators we keep still use: their prompts, reference datasets (and those datasets' rules) and queues stay.
+  const foreignPrompts = new Set<string>();
+  const foreignDatasets = new Set<string>();
+  const foreignQueues = new Set<string>();
+  const keepWhatItUses = (evaluator: EvaluatorRecord) => {
+    const llm = evaluator.llm_evaluator;
+    if (llm?.prompt_repo_handle) foreignPrompts.add(llm.prompt_repo_handle);
+    if (llm?.corrections_dataset_id) foreignDatasets.add(llm.corrections_dataset_id);
+    if (llm?.annotation_queue_id) foreignQueues.add(llm.annotation_queue_id);
+  };
+  const citesCode = await readFile(
+    new URL("../evaluators/cites-retrieved-docs.js", import.meta.url),
+    "utf8",
+  );
   for (const id of evaluatorIds) {
     // System Alignment evaluators come back 404: they're hidden from the public API.
     const record = await orNull(api.get<EvaluatorRecord>(`/platform/evaluators/${id}`));
-    if (record) evaluatorRecords.push(record);
+    if (!record) continue;
+    visibleEvaluators.add(record.id);
+    // Rules on our projects can attach someone else's evaluator; the rule goes, the evaluator and its prompt stay.
+    const handle = record.llm_evaluator?.prompt_repo_handle;
+    const ours =
+      DEMO_EVALUATOR_NAMES.includes(record.name) &&
+      (handle ? isDemoEvaluatorPrompt(handle) : record.code_evaluator?.code === citesCode);
+    if (ours) evaluatorRecords.push(record);
+    else keepWhatItUses(record);
   }
-  const visibleEvaluators = new Set(evaluatorRecords.map((record) => record.id));
+  // Prompts and datasets have no reference guard, so check every evaluator in the workspace, not only ours.
+  const ownedIds = new Set(evaluatorRecords.map((record) => record.id));
+  const workspaceEvaluators = await allPages((offset) =>
+    api
+      .get<{ evaluators: EvaluatorRecord[] }>("/platform/evaluators", { limit: 100, offset })
+      .then((page) => page.evaluators),
+  );
+  for (const evaluator of workspaceEvaluators)
+    if (!ownedIds.has(evaluator.id)) keepWhatItUses(evaluator);
+  const rules = [
+    ...projectRules,
+    ...[...datasetRules].flatMap(([datasetId, list]) =>
+      foreignDatasets.has(datasetId) ? [] : list,
+    ),
+  ];
 
   const referenceOwners = new Map(
     evaluatorRecords.flatMap((record) =>
       record.llm_evaluator?.corrections_dataset_id
-        ? [[record.llm_evaluator.corrections_dataset_id, record.name]]
+        ? [[record.llm_evaluator.corrections_dataset_id, record]]
         : [],
     ),
   );
-  const referenceDatasets = prefixed;
+  const referenceDatasets = prefixed.filter((dataset) => !foreignDatasets.has(dataset.id));
 
   const evaluators: Item[] = evaluatorRecords.map((record) => ({
     id: record.id,
@@ -333,29 +425,36 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
     };
   });
 
-  const promptHandles = new Map<string, string>();
+  // An evaluator can share its prompt; the prompt goes only once every evaluator using it is ours and deleted.
+  const promptOwners = new Map<string, EvaluatorRecord[]>();
   for (const record of evaluatorRecords) {
-    const llm = record.llm_evaluator;
-    if (llm?.prompt_repo_handle)
-      promptHandles.set(llm.prompt_repo_handle, `prompt of ${record.name}`);
+    const handle = record.llm_evaluator?.prompt_repo_handle;
+    if (handle && !foreignPrompts.has(handle))
+      promptOwners.set(handle, [...(promptOwners.get(handle) ?? []), record]);
   }
+  const prompts: Item[] = [...promptOwners].map(([handle, owners]) => ({
+    id: handle,
+    name: handle,
+    detail: `prompt of ${owners.map((owner) => owner.name).join(", ")}`,
+    removal: { api: "smith", path: `/repos/-/${handle}` },
+    dependsOn: owners.map((owner) => owner.id),
+  }));
   const promptSearch = await api.get<{ repos: { repo_handle: string; repo_type: string }[] }>(
     "/repos/",
     {
-      query: EVAL_PROMPT_PREFIX,
+      query: asPromptName(`eval_${ASSISTANT_ID}_`),
       repo_type: "prompt",
       limit: 100,
     },
   );
-  for (const repo of promptSearch.repos)
-    if (repo.repo_handle.startsWith(EVAL_PROMPT_PREFIX) && !promptHandles.has(repo.repo_handle))
-      promptHandles.set(repo.repo_handle, "an evaluator prompt whose evaluator is gone");
-  const prompts: Item[] = [...promptHandles].map(([handle, detail]) => ({
-    id: handle,
-    name: handle,
-    detail,
-    removal: { api: "smith", path: `/repos/-/${handle}` },
-  }));
+  for (const { repo_handle: handle } of promptSearch.repos)
+    if (isDemoEvaluatorPrompt(handle) && !promptOwners.has(handle) && !foreignPrompts.has(handle))
+      prompts.push({
+        id: handle,
+        name: handle,
+        detail: "an evaluator prompt whose evaluator is gone",
+        removal: { api: "smith", path: `/repos/-/${handle}` },
+      });
 
   const alignmentQueues = new Map(
     evaluatorRecords.flatMap((record) =>
@@ -364,9 +463,15 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
         : [],
     ),
   );
-  const queues: Item[] = (await api.get<Named[]>("/annotation-queues", { limit: 100 }))
+  const queues: Item[] = (
+    await allPages((offset) =>
+      api.get<Named[]>("/annotation-queues", { name_contains: ASSISTANT_ID, limit: 100, offset }),
+    )
+  )
     .filter(
-      (queue) => queue.name === QUEUE_NAME || queue.name.startsWith(EVALUATOR_RESOURCE_PREFIX),
+      (queue) =>
+        !foreignQueues.has(queue.id) &&
+        (queue.name === QUEUE_NAME || isDemoEvaluatorResource(queue.name)),
     )
     .map((queue) => {
       const owner = alignmentQueues.get(queue.id);
@@ -401,19 +506,6 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
         removedWith: `dataset ${dataset!.name}`,
       });
 
-  const feedbackConfigs: Item[] = (
-    await api.get<{ id: string; feedback_key: string }[]>("/feedback-configs", {
-      key: FEEDBACK_KEY,
-    })
-  )
-    .filter((config) => config.feedback_key === FEEDBACK_KEY)
-    .map((config) => ({
-      id: config.id,
-      name: config.feedback_key,
-      detail: "the triage queue's rubric",
-      removal: { api: "smith", path: "/feedback-configs/", query: { feedback_key: FEEDBACK_KEY } },
-    }));
-
   const datasetItem = (dataset: Named, detail: string): Item => ({
     id: dataset.id,
     name: dataset.name,
@@ -429,19 +521,16 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
     datasets: mainDataset
       ? [datasetItem(mainDataset, "seed examples and the demo-baseline version")]
       : [],
-    referenceDatasets: referenceDatasets.map((dataset) =>
-      datasetItem(
-        dataset,
-        referenceOwners.has(dataset.id)
-          ? `reference dataset of ${referenceOwners.get(dataset.id)}`
-          : "reference dataset whose evaluator is gone",
-      ),
-    ),
+    referenceDatasets: referenceDatasets.map((dataset) => {
+      const owner = referenceOwners.get(dataset.id);
+      return owner
+        ? { ...datasetItem(dataset, `reference dataset of ${owner.name}`), dependsOn: [owner.id] }
+        : datasetItem(dataset, "reference dataset whose evaluator is gone");
+    }),
     experiments,
     evaluators,
     rules: ruleItems,
     prompts,
     queues,
-    feedbackConfigs,
   };
 }

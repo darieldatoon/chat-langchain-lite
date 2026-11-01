@@ -1,4 +1,4 @@
-import { ASSISTANT_ID, type Deployment, type Environment } from "./agent.ts";
+import { ASSISTANT_ID, joinRun, type Deployment, type Environment } from "./agent.ts";
 import type { Api } from "./api.ts";
 import { listExamples } from "./dataset.ts";
 import { mapPool } from "./pool.ts";
@@ -167,7 +167,7 @@ export async function runExperiment(options: {
         context: spec.model ? { eval_model: spec.model } : undefined,
         langsmith_tracer: { project_name: session.name, example_id: example.id },
       });
-      await agentApi.get(`/threads/${thread.thread_id}/runs/${run.run_id}/join`);
+      await joinRun(agentApi, thread.thread_id, run.run_id);
       return 0;
     } catch {
       return 1;
@@ -185,6 +185,24 @@ export async function runExperiment(options: {
     status: "ran",
     failedRuns: failures.filter(Boolean).length,
   };
+}
+
+/** Why prepare left the demo unready: no traffic got through, a run failed, or scores never finished. */
+export function preparationProblems(result: {
+  readonly traffic?: { readonly sent: number; readonly failed: number };
+  readonly experiments?: readonly ExperimentResult[];
+  readonly completion?: Readonly<Record<string, Completion>>;
+}): string[] {
+  const problems: string[] = [];
+  if (result.traffic && result.traffic.sent === 0 && result.traffic.failed > 0)
+    problems.push(`traffic: all ${result.traffic.failed} requests failed`);
+  for (const experiment of result.experiments ?? [])
+    if (experiment.failedRuns > 0)
+      problems.push(`${experiment.role}: ${experiment.failedRuns} runs failed`);
+  for (const [role, completion] of Object.entries(result.completion ?? {}))
+    if (!completion.complete)
+      problems.push(`${role}: ${completion.rows}/${completion.expectedRows} rows scored`);
+  return problems;
 }
 
 /** Earlier experiments prepare ran for this role, which a refresh replaces. Experiments people ran keep other names. */

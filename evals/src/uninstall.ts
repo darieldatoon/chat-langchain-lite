@@ -7,6 +7,7 @@ import { checklist, originRepo } from "./github.ts";
 import {
   deletionPlan,
   discoverInventory,
+  executePlan,
   isEmpty,
   KNOWN_LEFTOVERS,
   renderInventory,
@@ -15,9 +16,10 @@ import {
 
 const log = (message: string) => console.log(`[uninstall] ${message}`);
 
-type Outcome = "deleted" | "already gone" | "failed";
-
-async function remove(apis: Record<"smith" | "host", Api>, step: PlannedRemoval): Promise<Outcome> {
+async function remove(
+  apis: Record<"smith" | "host", Api>,
+  step: PlannedRemoval,
+): Promise<"deleted" | "already gone" | "failed"> {
   const { api, path, query } = step.removal;
   try {
     await apis[api].delete(path, query);
@@ -47,10 +49,13 @@ async function main() {
     );
   } else {
     let failed = 0;
-    for (const step of deletionPlan(inventory)) {
-      const outcome = await remove(apis, step);
-      if (outcome === "failed") failed += 1;
-      log(`${outcome}: ${step.section} ${step.item.name}`);
+    for (const { step, outcome } of await executePlan(deletionPlan(inventory), (step) =>
+      remove(apis, step),
+    )) {
+      if (outcome === "failed" || outcome === "kept") failed += 1;
+      log(
+        `${outcome === "kept" ? "kept (what it depends on failed)" : outcome}: ${step.section} ${step.item.name}`,
+      );
     }
     const left = await discoverInventory(apis.smith, apis.host);
     if (isEmpty(left)) log("verified: nothing left.");
@@ -65,7 +70,7 @@ async function main() {
 
   log(`Known leftovers:\n${KNOWN_LEFTOVERS.map((line) => `  - ${line}`).join("\n")}`);
   log(
-    `Kept on purpose: the LC_GATEWAY_KEY workspace secret and the user_score feedback config, which other apps share.`,
+    `Kept on purpose: the LC_GATEWAY_KEY workspace secret and the user_score and answer_ok feedback configs, which other apps share.`,
   );
   let repo = "your fork";
   try {

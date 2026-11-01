@@ -5,6 +5,7 @@ import {
   DELETION_ORDER,
   deletionPlan,
   discoverInventory,
+  executePlan,
   type Inventory,
   renderInventory,
 } from "../src/inventory.ts";
@@ -23,7 +24,6 @@ const empty: Inventory = {
   rules: [],
   prompts: [],
   queues: [],
-  feedbackConfigs: [],
 };
 
 describe("deletionPlan", () => {
@@ -32,7 +32,6 @@ describe("deletionPlan", () => {
     expect(order("rules")).toBeLessThan(order("evaluators"));
     expect(order("evaluators")).toBeLessThan(order("prompts"));
     expect(order("rules")).toBeLessThan(order("referenceDatasets"));
-    expect(order("queues")).toBeLessThan(order("feedbackConfigs"));
   });
 
   it("skips what another delete removes", () => {
@@ -47,6 +46,28 @@ describe("deletionPlan", () => {
       evaluators: [{ id: "ev", name: "tone", removal: removal("/platform/evaluators/ev") }],
     });
     expect(plan.map((step) => step.item.id)).toEqual(["ev", "p", "q-1"]);
+  });
+});
+
+describe("executePlan", () => {
+  it("keeps what depends on an item whose delete failed", async () => {
+    const plan = deletionPlan({
+      ...empty,
+      evaluators: [{ id: "ev", name: "tone", removal: removal("/platform/evaluators/ev") }],
+      prompts: [{ id: "p", name: "p", removal: removal("/repos/-/p"), dependsOn: ["ev"] }],
+      queues: [{ id: "q", name: "triage", removal: removal("/annotation-queues/q") }],
+    });
+    const removed: string[] = [];
+    const results = await executePlan(plan, async (step) => {
+      removed.push(step.item.id);
+      return step.item.id === "ev" ? "failed" : "deleted";
+    });
+    expect(results.map(({ step, outcome }) => [step.item.id, outcome])).toEqual([
+      ["ev", "failed"],
+      ["p", "kept"],
+      ["q", "deleted"],
+    ]);
+    expect(removed).toEqual(["ev", "q"]);
   });
 });
 
@@ -74,15 +95,32 @@ describe("discoverInventory", () => {
       if (path === "/datasets")
         return q.name
           ? [{ id: "ds-1", name: "chat-langchain-lite" }]
-          : [{ id: "ref-1", name: "Evaluator: chat-langchain-lite:tone (ev1) – tone" }];
+          : [
+              {
+                id: "ref-1",
+                name: "Evaluator: chat-langchain-lite:professional_tone (ev1) – tone",
+              },
+              // Another install in the same workspace: its names start with ours.
+              {
+                id: "ref-other",
+                name: "Evaluator: chat-langchain-lite-mwalker-production:professional_tone (ev9) – tone",
+              },
+            ];
       if (path === "/runs/rules") {
         if (q.session_id === "s-prod")
           return [
             {
               id: "r-1",
-              display_name: "tone",
+              display_name: "professional_tone",
               session_name: "p",
               evaluator_id: "ev-1",
+              is_enabled: true,
+            },
+            {
+              id: "r-2",
+              display_name: "someone else's judge",
+              session_name: "p",
+              evaluator_id: "ev-theirs",
               is_enabled: true,
             },
           ];
@@ -102,19 +140,35 @@ describe("discoverInventory", () => {
       if (path === "/platform/evaluators/ev-1")
         return {
           id: "ev-1",
-          name: "tone",
+          name: "professional_tone",
           llm_evaluator: {
             prompt_id: "p-1",
-            prompt_repo_handle: "eval_chat_langchain_lite_tone_p1",
+            prompt_repo_handle: "eval_chat_langchain_lite_professional_tone_1234abcd",
             annotation_queue_id: "aq-1",
             corrections_dataset_id: "ref-1",
           },
         };
+      if (path === "/platform/evaluators/ev-theirs")
+        return {
+          id: "ev-theirs",
+          name: "someone else's judge",
+          llm_evaluator: { prompt_id: "p-9", prompt_repo_handle: "their_prompt" },
+        };
       if (path === "/platform/evaluators/sys-1") throw new ApiError(404, path, "");
-      if (path === "/repos/") return { repos: [] };
+      if (path === "/repos/")
+        return {
+          repos: [
+            { repo_handle: "eval_chat_langchain_lite_mwalker_production_professional_tone_x" },
+          ],
+        };
       if (path === "/annotation-queues")
-        return [{ id: "aq-1", name: "Evaluator: chat-langchain-lite:tone (ev1) – tone" }];
-      if (path === "/feedback-configs") return [];
+        return [
+          { id: "aq-1", name: "Evaluator: chat-langchain-lite:professional_tone (ev1) – tone" },
+          {
+            id: "aq-other",
+            name: "Evaluator: chat-langchain-lite-mwalker-production:professional_tone (ev9) – tone",
+          },
+        ];
       if (path.startsWith("/repos/-/")) throw new ApiError(404, path, "");
       if (path === "/v2/deployments") return { resources: [] };
       throw new Error(`unexpected ${path}`);
@@ -123,12 +177,21 @@ describe("discoverInventory", () => {
     const inventory = await discoverInventory(api, api);
     expect(inventory.evaluators.map((item) => item.id)).toEqual(["ev-1"]);
     expect(inventory.queues).toEqual([
-      expect.objectContaining({ id: "aq-1", removedWith: "evaluator tone" }),
+      expect.objectContaining({ id: "aq-1", removedWith: "evaluator professional_tone" }),
     ]);
-    expect(inventory.prompts.map((item) => item.removal?.path)).toEqual([
-      "/repos/-/eval_chat_langchain_lite_tone_p1",
+    expect(inventory.prompts).toEqual([
+      expect.objectContaining({
+        removal: {
+          api: "smith",
+          path: "/repos/-/eval_chat_langchain_lite_professional_tone_1234abcd",
+        },
+        dependsOn: ["ev-1"],
+      }),
     ]);
-    expect(inventory.rules.map((item) => item.id)).toEqual(["r-1", "r-a"]);
+    expect(inventory.referenceDatasets).toEqual([
+      expect.objectContaining({ id: "ref-1", dependsOn: ["ev-1"] }),
+    ]);
+    expect(inventory.rules.map((item) => item.id)).toEqual(["r-1", "r-2", "r-a"]);
     expect(api.calls.some((call) => call.method !== "GET")).toBe(false);
   });
 });
@@ -152,8 +215,7 @@ describe("discoverInventory deployments", () => {
       if (handle || path === "/agents/chat-langchain-lite") throw new ApiError(404, path, "");
       if (path === "/platform/evaluators") return { evaluators: [] };
       if (path === "/repos/") return { repos: [] };
-      if (["/sessions", "/datasets", "/annotation-queues", "/feedback-configs"].includes(path))
-        return [];
+      if (["/sessions", "/datasets", "/annotation-queues"].includes(path)) return [];
       throw new Error(`unexpected ${path}`);
     });
     return discoverInventory(api, api);
@@ -190,5 +252,149 @@ describe("discoverInventory deployments", () => {
         },
       }),
     ]);
+  });
+});
+
+describe("discoverInventory ownership", () => {
+  const prompt = (handle: string) => ({ repo_handle: handle });
+  const discover = (
+    evaluators: Record<string, object>,
+    extra: {
+      repos?: object[];
+      queues?: (offset: number) => object[];
+      workspace?: object[];
+      datasets?: object[];
+      datasetRules?: Record<string, object[]>;
+    } = {},
+  ) => {
+    const api = fakeApi(({ path, query }) => {
+      const q = (query ?? {}) as Record<string, unknown>;
+      if (path === "/agents/chat-langchain-lite") throw new ApiError(404, path, "");
+      if (path === "/sessions")
+        return q.name === "chat-langchain-lite-production"
+          ? [{ id: "s-prod", name: "chat-langchain-lite-production" }]
+          : [];
+      if (path === "/datasets") return q.name ? [] : (extra.datasets ?? []);
+      if (path === "/runs/rules")
+        return q.session_id === "s-prod"
+          ? Object.keys(evaluators).map((id) => ({
+              id: `r-${id}`,
+              display_name: id,
+              evaluator_id: id,
+              is_enabled: true,
+            }))
+          : (extra.datasetRules?.[String(q.dataset_id)] ?? []);
+      if (path === "/platform/evaluators")
+        return { evaluators: q.agent_id ? [] : (extra.workspace ?? []) };
+      if (path.startsWith("/platform/evaluators/")) return evaluators[path.split("/").pop()!];
+      if (path === "/repos/") return { repos: extra.repos ?? [] };
+      if (path === "/annotation-queues") return extra.queues?.(Number(q.offset ?? 0)) ?? [];
+      if (path.startsWith("/repos/-/")) throw new ApiError(404, path, "");
+      if (path === "/v2/deployments") return { resources: [] };
+      throw new Error(`unexpected ${path}`);
+    });
+    return discoverInventory(api, api);
+  };
+  const llm = (id: string, name: string, handle: string) => ({
+    id,
+    name,
+    llm_evaluator: { prompt_id: `p-${id}`, prompt_repo_handle: handle },
+  });
+
+  it("keeps a code evaluator with our name but not our code", async () => {
+    const inventory = await discover({
+      ev: {
+        id: "ev",
+        name: "cites_retrieved_docs",
+        code_evaluator: { code: "function performEval() {}" },
+      },
+    });
+    expect(inventory.evaluators).toEqual([]);
+  });
+
+  it("matches the backend's whole prompt name, not a longer rule's", async () => {
+    const inventory = await discover(
+      {},
+      { repos: [prompt("eval_chat_langchain_lite_professional_tone_custom_1234abcd")] },
+    );
+    expect(inventory.prompts).toEqual([]);
+  });
+
+  it("deletes a shared prompt only after every evaluator using it, and never one a foreign evaluator uses", async () => {
+    const shared = "eval_chat_langchain_lite_professional_tone_1234abcd";
+    const both = await discover({
+      a: llm("a", "professional_tone", shared),
+      b: llm("b", "professional_tone_llm", shared),
+    });
+    expect(both.prompts).toEqual([expect.objectContaining({ id: shared, dependsOn: ["a", "b"] })]);
+
+    const withForeign = await discover(
+      { a: llm("a", "professional_tone", shared), theirs: llm("theirs", "renamed judge", shared) },
+      { repos: [prompt(shared)] },
+    );
+    expect(withForeign.evaluators.map((item) => item.id)).toEqual(["a"]);
+    expect(withForeign.prompts).toEqual([]);
+  });
+
+  it("keeps a prompt that an evaluator attached elsewhere in the workspace still uses", async () => {
+    const shared = "eval_chat_langchain_lite_professional_tone_1234abcd";
+    const elsewhere = llm("elsewhere", "copied judge", shared);
+    const viaOurs = await discover(
+      { a: llm("a", "professional_tone", shared) },
+      { workspace: [elsewhere] },
+    );
+    expect(viaOurs.evaluators.map((item) => item.id)).toEqual(["a"]);
+    expect(viaOurs.prompts).toEqual([]);
+
+    const orphan = await discover({}, { repos: [prompt(shared)], workspace: [elsewhere] });
+    expect(orphan.prompts).toEqual([]);
+  });
+
+  it("keeps everything a renamed demo judge still uses: prompt, reference dataset and its rules, queue", async () => {
+    const handle = "eval_chat_langchain_lite_professional_tone_1234abcd";
+    const refName = "Evaluator: chat-langchain-lite:professional_tone (aaaa1111) – tone";
+    const renamed = {
+      id: "renamed",
+      name: "tone v2",
+      llm_evaluator: {
+        prompt_id: "p",
+        prompt_repo_handle: handle,
+        corrections_dataset_id: "ref-1",
+        annotation_queue_id: "aq-1",
+      },
+    };
+    const inventory = await discover(
+      { renamed },
+      {
+        datasets: [{ id: "ref-1", name: refName }],
+        datasetRules: {
+          "ref-1": [
+            { id: "r-align", display_name: "Alignment", evaluator_id: "sys", is_enabled: true },
+          ],
+        },
+        queues: () => [{ id: "aq-1", name: refName }],
+        repos: [prompt(handle)],
+      },
+    );
+    expect(inventory.evaluators).toEqual([]);
+    expect(inventory.prompts).toEqual([]);
+    expect(inventory.referenceDatasets).toEqual([]);
+    expect(inventory.queues).toEqual([]);
+    expect(inventory.rules.map((item) => item.id)).not.toContain("r-align");
+  });
+
+  it("finds the triage queue past the first page", async () => {
+    const others = Array.from({ length: 100 }, (_, i) => ({
+      id: `q${i}`,
+      name: `chat-langchain-lite-${i}-notes`,
+    }));
+    const inventory = await discover(
+      {},
+      {
+        queues: (offset) =>
+          offset === 0 ? others : [{ id: "triage", name: "chat-langchain-lite-triage" }],
+      },
+    );
+    expect(inventory.queues.map((item) => item.id)).toEqual(["triage"]);
   });
 });

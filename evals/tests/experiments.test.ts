@@ -6,6 +6,7 @@ import {
   experimentName,
   isSameExperiment,
   OFFLINE_KEYS,
+  preparationProblems,
   staleExperiments,
   waitForScores,
 } from "../src/experiments.ts";
@@ -108,5 +109,44 @@ describe("isSameExperiment", () => {
     expect(isSameExperiment(`${base}::retry-1792290000000::bff97301`, base)).toBe(true);
     expect(isSameExperiment(base, base)).toBe(true);
     expect(isSameExperiment(`${base}::split-demo::1a2b3c4d`, base)).toBe(false);
+  });
+});
+
+describe("preparationProblems", () => {
+  const ran = (role: string, failedRuns: number) => ({
+    role,
+    name: role,
+    sessionId: role,
+    expectedRows: 4,
+    status: "ran" as const,
+    failedRuns,
+  });
+
+  it("is empty when traffic got through and every experiment finished scoring", () => {
+    expect(
+      preparationProblems({
+        traffic: { sent: 28, failed: 2 },
+        experiments: [ran("production", 0)],
+        completion: {
+          production: { rows: 4, expectedRows: 4, missingScores: {}, complete: true },
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("flags traffic that all failed, failed runs and unfinished scores", () => {
+    expect(
+      preparationProblems({
+        traffic: { sent: 0, failed: 30 },
+        experiments: [ran("development", 3)],
+        completion: {
+          development: { rows: 1, expectedRows: 4, missingScores: { tone: 3 }, complete: false },
+        },
+      }),
+    ).toEqual([
+      "traffic: all 30 requests failed",
+      "development: 3 runs failed",
+      "development: 1/4 rows scored",
+    ]);
   });
 });

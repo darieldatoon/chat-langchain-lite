@@ -28,14 +28,16 @@ import {
   type RuleTarget,
 } from "./evaluators.ts";
 import {
+  type Completion,
+  type ExperimentResult,
   EXPERIMENTS,
+  preparationProblems,
   removeStaleExperiments,
   runExperiment,
   waitForScores,
-  type ExperimentResult,
 } from "./experiments.ts";
 import { tagAgentResources } from "./tags.ts";
-import { sendTraffic } from "./traffic.ts";
+import { sendTraffic, type TrafficSummary } from "./traffic.ts";
 import { ensureTriage } from "./triage.ts";
 
 // Seeding always runs: every other step needs the dataset id, and it changes nothing when current.
@@ -263,6 +265,16 @@ async function main() {
     `${JSON.stringify(manifest, null, 2)}\n`,
   );
   log("manifest written to evals/.prepare/manifest.json");
+
+  const problems = preparationProblems({
+    traffic: manifest.traffic as TrafficSummary | undefined,
+    experiments: manifest.experiments as ExperimentResult[] | undefined,
+    completion: manifest.completion as Record<string, Completion> | undefined,
+  });
+  if (problems.length > 0) {
+    for (const problem of problems) log(`not ready: ${problem}`);
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error: unknown) => {

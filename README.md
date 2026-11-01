@@ -44,7 +44,7 @@ Then:
    mise run dev          # agent on http://localhost:2024, app on http://localhost:5173
    ```
 
-Locally, `mda dev` doesn't enforce sign-in, so any value works on the sign-in page. Deployed agents check that your token belongs to a member of their workspace.
+`mda dev` verifies "Sign in with LangSmith" tokens too, so set up [local sign-in](#sign-in-with-langsmith) first. Personal access tokens work only against deployed agents, which check them through LangSmith.
 
 ## Tasks
 
@@ -117,7 +117,7 @@ The app signs people in with their LangSmith account, and keeps personal access 
 1. Ask an org admin to register an OAuth app under **Settings → OAuth applications**: type **Public**, redirect URIs `https://<you>.github.io/<repo>/` (trailing slash included) and `http://localhost`, scopes `openid`, `email`, `profile` and `offline_access`. It needs the org's `sign_in_with_langsmith` flag.
 2. Put its client id (`lsc_…`) in `agent/.env` as `OAUTH_CLIENT_ID` and re-run `mise run demo:install`.
 
-LangSmith lets any of its users approve the app, so the agent admits only tokens issued to this app for members of your org. People in several orgs choose one on LangSmith's consent page; if they choose another, the app sends them back to choose again. The consent page lists only the orgs of the account they're signed in to LangSmith with. When the org uses SSO, sign-in goes through its SSO login first, which also switches a LangSmith session signed in with another account; otherwise people sign out of LangSmith and back in with the right login. The sign-in screen remembers the last account's email (no tokens) in `localStorage`. Keys reach the agent through LangSmith's own check of the workspace, the way Studio and Engine call it. People who sign in with a key see only their own threads in the app; the API would let them read everyone's.
+LangSmith lets any of its users approve the app, so the agent runs only for tokens issued to this app for members of your org. Thread reads, updates and deletes are scoped to the token's user instead: a person's token from another OAuth app reaches only that person's own threads. People in several orgs choose one on LangSmith's consent page; if they choose another, the app sends them back to choose again. The consent page lists only the orgs of the account they're signed in to LangSmith with. When the org uses SSO, sign-in goes through its SSO login first, which also switches a LangSmith session signed in with another account; otherwise people sign out of LangSmith and back in with the right login. The sign-in screen remembers the last account's email (no tokens) in `localStorage`. Keys reach the agent through LangSmith's own check of the workspace, the way Studio and Engine call it. People who sign in with a key see only their own threads in the app; the API would let them read everyone's.
 
 For local sign-in, put `VITE_OAUTH_CLIENT_ID=lsc_…`, `VITE_LANGSMITH_ORGANIZATION_ID` and `VITE_LANGSMITH_SSO_SLUG` (if any) in `web/.env.development.local`, and `OAUTH_CLIENT_ID` and `ALLOWED_ORGANIZATION_ID` in `agent/.env`.
 
@@ -137,7 +137,7 @@ Once installed, GitHub Actions keep the demo ready. They use the `LANGSMITH_API_
 |---|---|---|
 | Trickle | Every 4 hours | A few conversations with production, some with a follow-up and feedback, so there are always recent traces and evidence for Engine |
 | Health | Daily | Checks the deployments, sign-in, Pages, the Gateway key, Engine and the schedules. While anything fails, one issue labeled `demo-health` stays open |
-| Reset | By hand, after approval | Closes Engine's fix PRs, replaces its board, sends traffic and refreshes the experiments. Branches stay as they are |
+| Reset | By hand, after approval | Closes Engine's fix PRs, replaces its board, sends traffic and refreshes the experiments. `main` and `development` stay as they are |
 | Teardown | By hand, after approval | Runs `demo:uninstall --yes` |
 | Prepare demo | By hand | Runs `demo:prepare` |
 
@@ -145,7 +145,7 @@ Reset and Teardown take a typed confirmation and wait in the `maintainers` envir
 
 ## Uninstall
 
-`mise run demo:uninstall` lists everything the demo created in the workspace, with what each evaluator is attached to. `mise run demo:uninstall -- --yes` deletes it in dependency order, re-checks, and lists what to remove by hand on GitHub and locally. It keeps the `LC_GATEWAY_KEY` workspace secret and the `user_score` feedback config, which other apps share.
+`mise run demo:uninstall` lists everything the demo created in the workspace, with what each evaluator is attached to. `mise run demo:uninstall -- --yes` deletes it in dependency order, re-checks, and lists what to remove by hand on GitHub and locally. It deletes only evaluators the demo created, and keeps the `LC_GATEWAY_KEY` workspace secret and the `user_score` and `answer_ok` feedback configs, which other apps share.
 
 ## License
 

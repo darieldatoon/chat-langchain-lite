@@ -2,12 +2,13 @@
 // and workspace:/catalog: specs can't be resolved by its npm install.
 import { existsSync, readFileSync } from "node:fs";
 
+const agent = new URL("../agent/", import.meta.url);
 const problems = [];
 for (const lockfile of ["pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lock", "bun.lockb"]) {
-  if (existsSync(`agent/${lockfile}`)) problems.push(`agent/${lockfile} must not exist`);
+  if (existsSync(new URL(lockfile, agent))) problems.push(`agent/${lockfile} must not exist`);
 }
 
-const manifest = JSON.parse(readFileSync("agent/package.json", "utf8"));
+const manifest = JSON.parse(readFileSync(new URL("package.json", agent), "utf8"));
 for (const section of ["dependencies", "devDependencies"]) {
   for (const [name, spec] of Object.entries(manifest[section] ?? {})) {
     if (/^(workspace|catalog):/.test(spec)) problems.push(`agent/package.json ${section}.${name} uses "${spec}"`);
