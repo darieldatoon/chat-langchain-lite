@@ -70,7 +70,7 @@ export function ChatConversationListGroup({
         <CollapsibleTrigger
           data-conversation-trigger=""
           aria-label={title}
-          className="group/conversation-toggle flex min-w-0 flex-1 cursor-pointer items-center gap-space-2 rounded-md border-2 border-transparent bg-transparent px-space-3 py-space-2 text-left outline-none focus-visible:border-focus disabled:cursor-not-allowed disabled:opacity-50"
+          className="group/conversation-toggle flex min-w-0 flex-1 cursor-pointer items-center gap-space-2 rounded-md border-2 border-transparent bg-transparent px-space-3 py-space-2 text-left outline-hidden focus-visible:border-focus disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="flex size-4 shrink-0 items-center justify-center">
             <CaretRightIcon
