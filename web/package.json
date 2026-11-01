@@ -10,9 +10,9 @@
     "test": "vp test run"
   },
   "dependencies": {
-    "@langchain/langgraph-sdk": "1.12.5",
+    "@langchain/langgraph-sdk": "1.12.9",
     "@langchain/macaw-components": "1.0.0-beta.9",
-    "@langchain/react": "1.2.5",
+    "@langchain/react": "1.2.9",
     "@phosphor-icons/react": "2.1.10",
     "@radix-ui/react-collapsible": "1.2.1",
     "@radix-ui/react-use-controllable-state": "1.3.0",
@@ -23,11 +23,11 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "postcss": "8.5.30",
+    "postcss": "8.5.32",
     "tailwindcss": "3.4.19",
-    "vite-plus": "1.3.0"
+    "vite-plus": "1.4.0"
   }
 }
