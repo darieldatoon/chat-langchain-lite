@@ -68,7 +68,7 @@ export function ThreadSidebar({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search threads…"
             aria-label="Search threads"
-            className="min-w-0 flex-1 bg-transparent text-sm text-primary outline-none placeholder:text-placeholder [&::-webkit-search-cancel-button]:hidden"
+            className="min-w-0 flex-1 bg-transparent text-sm text-primary outline-hidden placeholder:text-placeholder [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
             <button

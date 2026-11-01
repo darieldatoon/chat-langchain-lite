@@ -2,6 +2,12 @@
 
 A small LangChain docs assistant that Deployed Engineers use to demo LangSmith. It runs as a TypeScript [Managed Deep Agent](https://docs.langchain.com/langsmith/javascript/managed-deep-agents-quickstart) with a React chat app on GitHub Pages.
 
+## Use the shared demo
+
+This repo deploys one shared demo to LangChain's demo workspace, and the app runs at <https://langchain-samples.github.io/chat-langchain-lite/>. Demo from it rather than installing your own copy: GitHub Actions keep it ready, with fresh traffic, pre-run experiments and Engine's verified fixes.
+
+Fork only to build a change you mean to merge back. See [Contributing](#contributing).
+
 ## Repo layout
 
 ```
@@ -85,7 +91,9 @@ A pull request into `development` labeled `preview` gets its own preview deploym
 
 The deployment type is fixed when a deployment is first created. Changing it later means deleting and recreating the deployment.
 
-## Fork setup
+## Contributing
+
+Build changes in a fork, test them in your own LangSmith workspace, then open a pull request into this repo's `main`. The steps below install a full copy of the demo in that workspace. Don't point a fork at the shared demo's workspace.
 
 1. Fork this repo with **Copy the `main` branch only** unchecked, so you get `development` too. For a fork that only has `main`, add the original repo as the `upstream` remote and run `git fetch upstream development && git push origin upstream/development:development`.
 2. In LangSmith, start a new deployment from GitHub and give LangSmith's GitHub App access to your fork. You can cancel before creating the deployment.

@@ -87,7 +87,7 @@ export function ChatConversation({
           aria-label={`${label} messages`}
           aria-live="off"
           tabIndex={0}
-          className="focus-visible:ring-focus min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
+          className="focus-visible:ring-focus min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset"
         >
           <div
             ref={contentRef}
