@@ -37,6 +37,10 @@ describe("modelOptions", () => {
   it("disables extended thinking", () => {
     expect(options.thinking).toEqual({ type: "disabled" });
   });
+
+  it("leaves room for a full answer with code and docs links", () => {
+    expect(options.maxTokens).toBeGreaterThanOrEqual(4096);
+  });
 });
 
 describe("chooseModel", () => {
@@ -59,6 +63,10 @@ describe("gptLunaOptions", () => {
   it("matches the Anthropic model's output budget with reasoning off", () => {
     expect(options.maxTokens).toBe(modelOptions({ LANGSMITH_GATEWAY_API_KEY: "g" }).maxTokens);
     expect(options.reasoning).toEqual({ effort: "none" });
+  });
+
+  it("leaves room for a full answer with code and docs links", () => {
+    expect(options.maxTokens).toBeGreaterThanOrEqual(4096);
   });
 });
 

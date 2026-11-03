@@ -3,7 +3,7 @@ import type { Config } from "./config.ts";
 
 export const ASSISTANT_ID = "chat-langchain-lite";
 // Mirrors the agent's output limit, so simulated users can spot answers that ran out of room.
-export const AGENT_OUTPUT_LIMIT = 900;
+export const AGENT_OUTPUT_LIMIT = 4096;
 export type Environment = "production" | "development";
 
 /** The agent only accepts OAuth tokens directly; a LangSmith API key needs the platform's scheme, as Studio and Engine send. */
