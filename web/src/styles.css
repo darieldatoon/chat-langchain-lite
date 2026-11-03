@@ -1,0 +1,10 @@
+/* Macaw's styles.css already ships base styles and tokens; only add utilities for our own markup. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@config "../tailwind.config.cjs";
+
+html,
+body,
+#root {
+  height: 100%;
+}
