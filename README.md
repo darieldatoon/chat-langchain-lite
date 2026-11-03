@@ -6,6 +6,8 @@ A small LangChain docs assistant that Deployed Engineers use to demo LangSmith. 
 
 This repo deploys one shared demo to LangChain's demo workspace, and the app runs at <https://langchain-samples.github.io/chat-langchain-lite/>. Demo from it rather than installing your own copy: GitHub Actions keep it ready, with fresh traffic, pre-run experiments and Engine's verified fixes.
 
+LangChain employees: the [Demo Guide](https://app.notion.com/p/40d808527b1780a294dbfa6706f82681) has the demo paths, a feature tour and an FAQ.
+
 Fork only to build a change you mean to merge back. See [Contributing](#contributing).
 
 ## Repo layout
