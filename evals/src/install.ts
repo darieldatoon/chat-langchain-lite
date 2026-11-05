@@ -307,7 +307,7 @@ async function main() {
   await dispatchAndWait(repo, "pages.yml", "main");
 
   // Traffic before the board: creating it starts a scan, which finds nothing without production traces.
-  prepare("readiness,evaluators,triage,traffic", "mise run demo:install");
+  prepare("readiness,evaluators,triage,app,traffic", "mise run demo:install");
   await ensureBoard(api, { repo, production, development }, log);
   prepare("experiments", "mise run demo:prepare");
 
