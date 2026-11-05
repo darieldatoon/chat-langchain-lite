@@ -43,6 +43,10 @@ describe("toneLlmRule", () => {
     expect(booleans.map(([key]) => key)).toEqual([TONE_LLM_RULE_NAME]);
   });
 
+  it("traces the judge, which new rules no longer do by default", () => {
+    expect(rule.is_tracing_disabled).toBe(false);
+  });
+
   it("runs luna through the Gateway with the key as a secret reference", () => {
     expect(structured.model.kwargs.model).toBe("gpt-6-luna");
     expect(structured.model.kwargs.openai_api_key).toEqual({
@@ -120,6 +124,12 @@ describe("sharedRule", () => {
     const target = { kind: "session", sessionId: "s-1" } as const;
     expect((sharedRule(target, source) as any).is_enabled).toBe(true);
     expect((sharedRule(target, source, { enabled: false }) as any).is_enabled).toBe(false);
+  });
+
+  it("leaves the evaluator untraced unless asked", () => {
+    const target = { kind: "session", sessionId: "s-1" } as const;
+    expect((sharedRule(target, source) as any).is_tracing_disabled).toBe(true);
+    expect((sharedRule(target, source, { traced: true }) as any).is_tracing_disabled).toBe(false);
   });
 
   it("keeps the trajectory grouping when sharing a trajectory evaluator", () => {

@@ -1,0 +1,385 @@
+:root {
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #f4f4f4;
+  color: #1f1f1f;
+  font-family: Aptos, Calibri, Arial, sans-serif;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+.excel-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-width: 880px;
+  background: #fff;
+}
+.excel-titlebar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 13px;
+  background: #217346;
+  color: white;
+  font-size: 13px;
+}
+.excel-brand,
+.window-controls,
+.excel-tabs,
+.excel-ribbon,
+.formula-row,
+.sheet-footer {
+  display: flex;
+  align-items: center;
+}
+.excel-brand {
+  gap: 11px;
+}
+.excel-icon {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  font-weight: 700;
+  font-size: 15px;
+}
+.workbook-name {
+  opacity: 0.92;
+}
+.saved-dot {
+  margin-left: 12px;
+  opacity: 0.82;
+  font-size: 11px;
+}
+.window-controls {
+  height: 100%;
+  gap: 19px;
+  padding: 0 8px;
+  font-size: 16px;
+}
+.excel-tabs {
+  min-height: 35px;
+  padding: 0 12px;
+  gap: 1px;
+  background: #217346;
+  color: white;
+}
+.excel-tabs button {
+  height: 35px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.excel-tabs .tab-active {
+  border-bottom-color: white;
+  font-weight: 700;
+}
+.tab-spacer {
+  flex: 1;
+}
+.excel-tabs label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  opacity: 0.96;
+}
+.excel-tabs select {
+  max-width: 145px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 2px;
+  padding: 3px 20px 3px 6px;
+  background: #17633b;
+  color: white;
+  font-size: 11px;
+}
+.excel-ribbon {
+  min-height: 83px;
+  gap: 0;
+  padding: 6px 10px;
+  border-bottom: 1px solid #d6d6d6;
+  background: #fafafa;
+}
+.ribbon-group {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px 17px;
+  border-right: 1px solid #dddddd;
+}
+.ribbon-label {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  left: 0;
+  text-align: center;
+  color: #666;
+  font-size: 10px;
+}
+.ribbon-group button {
+  min-width: 26px;
+  height: 25px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: #292929;
+  cursor: pointer;
+}
+.ribbon-group button:hover {
+  border-color: #c8c8c8;
+  background: #eee;
+}
+.paste-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 54px !important;
+  font-size: 20px;
+}
+.paste-button small {
+  font-size: 10px;
+}
+.font-group select {
+  width: 78px;
+  height: 25px;
+  border: 1px solid #bdbdbd;
+  background: white;
+  font-size: 11px;
+}
+.font-group select:nth-of-type(2) {
+  width: 42px;
+}
+.fill-group {
+  gap: 3px;
+}
+.ribbon-group .paint {
+  padding: 3px;
+}
+.paint span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #9a9a9a;
+}
+.paint.none span {
+  background: white;
+}
+.paint.green span {
+  background: #c6efce;
+}
+.paint.yellow span {
+  background: #ffeb9c;
+}
+.paint.red span {
+  background: #ffc7ce;
+}
+.paint.blue span {
+  background: #bdd7ee;
+}
+.paint.purple span {
+  background: #e4dfec;
+}
+.paint.paint-active {
+  outline: 2px solid #217346;
+  outline-offset: 1px;
+}
+.ribbon-status {
+  margin-left: auto;
+  padding: 0 14px;
+  color: #666;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.formula-row {
+  min-height: 31px;
+  gap: 0;
+  border-bottom: 1px solid #bcbcbc;
+  background: #f7f7f7;
+}
+.name-field {
+  width: 73px;
+  height: 23px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  margin: 3px 5px;
+  border: 1px solid #b9b9b9;
+  background: white;
+  font-size: 12px;
+}
+.fx {
+  padding: 0 10px;
+  color: #666;
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+.formula-row input {
+  flex: 1;
+  height: 23px;
+  margin-right: 5px;
+  border: 1px solid #b9b9b9;
+  padding: 2px 7px;
+  outline: none;
+  background: white;
+  font-size: 12px;
+}
+.workbook {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}
+.grid-wrap {
+  height: 100%;
+  overflow: auto;
+}
+.excel-grid {
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 2460px;
+  font-family: Aptos, Calibri, Arial, sans-serif;
+  font-size: 12px;
+}
+.excel-grid th,
+.excel-grid td {
+  border: 1px solid #d9d9d9;
+  padding: 0;
+}
+.corner,
+.column-header,
+.row-header {
+  position: sticky;
+  z-index: 4;
+  background: #f3f3f3;
+  color: #505050;
+  font-weight: 400;
+  user-select: none;
+}
+.corner {
+  top: 0;
+  left: 0;
+  min-width: 44px;
+  height: 22px;
+  z-index: 6;
+}
+.column-header {
+  top: 0;
+  min-width: 94px;
+  height: 22px;
+  text-align: center;
+  font-size: 11px;
+}
+.row-header {
+  left: 0;
+  min-width: 44px;
+  width: 44px;
+  height: 22px;
+  text-align: center;
+  font-size: 11px;
+  z-index: 5;
+}
+.grid-cell {
+  width: 94px;
+  min-width: 94px;
+  height: 22px;
+  background: white;
+}
+.grid-cell input {
+  display: block;
+  width: 100%;
+  height: 21px;
+  border: 0;
+  padding: 2px 5px;
+  outline: 0;
+  background: transparent;
+  color: #1f1f1f;
+  font-size: 12px;
+}
+.grid-cell:focus-within,
+.grid-cell.selected {
+  position: relative;
+  outline: 2px solid #217346;
+  outline-offset: -2px;
+  z-index: 2;
+}
+.fill-green {
+  background: #c6efce;
+}
+.fill-yellow {
+  background: #ffeb9c;
+}
+.fill-red {
+  background: #ffc7ce;
+}
+.fill-blue {
+  background: #bdd7ee;
+}
+.fill-purple {
+  background: #e4dfec;
+}
+.grid-cell:nth-child(2),
+.grid-cell:nth-child(3),
+.grid-cell:nth-child(4),
+.grid-cell:nth-child(5),
+.grid-cell:nth-child(6),
+.grid-cell:nth-child(7) {
+  width: 176px;
+  min-width: 176px;
+}
+.grid-cell:nth-child(3),
+.grid-cell:nth-child(4),
+.grid-cell:nth-child(5) {
+  width: 280px;
+  min-width: 280px;
+}
+.sheet-footer {
+  min-height: 27px;
+  gap: 18px;
+  padding: 0 10px;
+  border-top: 1px solid #d1d1d1;
+  background: #f6f6f6;
+  color: #555;
+  font-size: 11px;
+}
+.footer-spacer {
+  flex: 1;
+}
+.sheet-footer button {
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: #555;
+  font-size: 11px;
+}
+.zoom {
+  min-width: 37px;
+  text-align: center;
+}
+@media (max-width: 1050px) {
+  .ribbon-group:nth-of-type(4),
+  .ribbon-group:nth-of-type(5) {
+    display: none;
+  }
+  .ribbon-status {
+    display: none;
+  }
+}

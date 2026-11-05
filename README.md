@@ -56,7 +56,7 @@ Then:
 | `mise run dev` | Run the agent and the web app locally |
 | `mise run check` | Format check, lint and typecheck |
 | `mise run test` | Unit tests |
-| `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators and triage queue, send sample traffic, and pre-run the experiments |
+| `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators, triage queue and its custom app, send sample traffic, and pre-run the experiments |
 | `mise run demo:install` | Set up, create both environments as GitHub-connected deployments, turn on previews and Engine fix verification, publish Pages, then run `demo:prepare` |
 | `mise run demo:trickle` | Send a few conversations with feedback to production, as the Trickle workflow does |
 | `mise run demo:check` | Check the deployed demo end to end, as the Health workflow does |
@@ -68,7 +68,7 @@ Then:
 `mise run demo:prepare` (or **Actions → Prepare demo**) gets a workspace ready for the demo. It's safe to re-run; finished work is skipped.
 
 1. Seeds the `chat-langchain-lite` dataset from `evals/dataset/examples.json`. Each example is a question plus assertions a correct answer must satisfy.
-2. Creates the hosted evaluators: the built-in Assertions judge, a Jev decision model for tone, a gpt-6-luna tone judge (`professional_tone_llm`) with an alignment queue for tuning it against human labels (on for experiments, attached but off for traces), a JavaScript check that answers cite the docs they searched, and LangSmith's Trajectory Accuracy judge on both tracing projects. It also creates a triage annotation queue that collects thumbs-down answers. The dataset, queue, evaluators and their prompts are tagged to the `chat-langchain-lite` agent, so they show up under it in LangSmith.
+2. Creates the hosted evaluators: the built-in Assertions judge, a Jev decision model for tone, a gpt-6-luna tone judge (`professional_tone_llm`) with an alignment queue for tuning it against human labels (on for experiments, attached but off for traces; its runs are traced, so each score links to the judge's reasoning), a JavaScript check that answers cite the docs they searched, and LangSmith's Trajectory Accuracy judge on both tracing projects. It also creates a triage annotation queue that collects thumbs-down answers, and pushes [`triage-sheet/`](triage-sheet/README.md), a custom app that shows that queue as a spreadsheet. The dataset, queue, evaluators and their prompts are tagged to the `chat-langchain-lite` agent, so they show up under it in LangSmith.
 3. Sends sample questions to `production`.
 4. Pre-runs three experiments: production, development, and development with gpt-6-luna.
 

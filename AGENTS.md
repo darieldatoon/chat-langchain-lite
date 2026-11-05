@@ -5,12 +5,13 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 ## Commands
 
 - `mise run check` and `mise run test` must pass before you commit. Git hooks (lefthook) run them on push.
-- Format with `pnpm exec oxfmt` in `agent/` and `evals/`, and `pnpm exec vp fmt` in `web/`.
+- Format with `pnpm exec oxfmt` in `agent/` and `evals/`, and `pnpm exec vp fmt` in `web/` and `triage-sheet/`.
 - Install packages through Socket Firewall: `sfw pnpm add …`. Pin exact versions.
 
 ## Rules that look removable but aren't
 
 - **No lockfile in `agent/`** and no `workspace:` or `catalog:` versions in `agent/package.json`. `mda` copies `agent/` into its build; a lockfile makes LangSmith's builder use pnpm and fail. `scripts/check-agent-manifest.mjs` enforces this.
+- **`triage-sheet/package.json` aliases `vite` to `@voidzero-dev/vite-plus-core`.** Without it, the app's `vitest` resolves to a different copy than `vite-plus/test` re-exports, and jest-dom's matchers lose their types (`tests/matchers.d.ts`).
 - **Pin every runtime package `mda` injects** in `agent/package.json` (see `crates/mda/src/dependencies.rs` in the MDA SDK). Unpinned, they float on each deploy.
 - **`thinking` stays disabled** on the model. `agent/tests/model.test.ts` enforces it.
 - **The assistant id `chat-langchain-lite`** appears in `agent/agent.ts`, `web/src/config.ts` and `evals/src/agent.ts`. Change all three or none.
@@ -30,4 +31,5 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - `web/src/components/`: chat components copied from LangSmith's design system; keep upstream edits minimal.
 - `evals/src/install.ts`: creates both environments as GitHub-connected deployments, turns on previews for `development` and creates the Engine board (`evals/src/engine.ts`).
 - `evals/src/trickle.ts`, `evals/src/check.ts`, `evals/src/reset.ts` and `evals/src/gateway-key.ts`: the Trickle, Health, Reset and Sync Gateway key workflows. Reset leaves `main` and `development` alone; it deletes only the branches of Engine's fix PRs it closes.
+- `triage-sheet/`: a LangSmith custom app over the triage queue, tested at 100% coverage. Prepare's `app` step pushes it (`evals/src/app.ts`); it finds the queue by name, so don't hard-code ids. Its `AGENTS.md` and `context.md` (from `langsmith apps init`) cover the app's own rules.
 - `evals/`: the prepare step (`src/prepare.ts`), the seed dataset and the hosted JavaScript evaluator. `evals/evaluators/cites-retrieved-docs.js` runs in LangSmith's sandbox: no imports, every helper inside `performEval`.
