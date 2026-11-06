@@ -28,7 +28,7 @@ Chat LangChain Lite is a LangSmith demo app: a TypeScript Managed Deep Agent (`a
 - `agent/identity.ts` and `agent/access.ts`: "Sign in with LangSmith" tokens from our OAuth app and org; API keys through the platform scheme, for members of the deployment's workspace.
 - `web/src/auth/`: OAuth (PKCE, refresh in the tab) and PAT sessions; each request asks the session for fresh headers.
 - `web/src/chat/turns.ts`: messages → render-ready turns (pure, tested).
-- `web/src/components/`: chat components copied from LangSmith's design system; keep upstream edits minimal.
+- `web/src/chat/`: the chat UI, built on Macaw's chat components (`@langchain/macaw-components/Chat*`).
 - `evals/src/install.ts`: creates both environments as GitHub-connected deployments, turns on previews for `development` and creates the Engine board (`evals/src/engine.ts`).
 - `evals/src/trickle.ts`, `evals/src/check.ts`, `evals/src/reset.ts` and `evals/src/gateway-key.ts`: the Trickle, Health, Reset and Sync Gateway key workflows. Reset leaves `main` and `development` alone; it deletes only the branches of Engine's fix PRs it closes.
 - `triage-sheet/`: a LangSmith custom app over the triage queue, tested at 100% coverage. Prepare's `app` step pushes it (`evals/src/app.ts`); it finds the queue by name, so don't hard-code ids. Its `AGENTS.md` and `context.md` (from `langsmith apps init`) cover the app's own rules.
