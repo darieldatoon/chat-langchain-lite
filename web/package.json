@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@langchain/langgraph-sdk": "1.12.9",
-    "@langchain/macaw-components": "1.3.4",
+    "@langchain/macaw-components": "1.7.2",
     "@langchain/react": "1.2.9",
     "@phosphor-icons/react": "2.1.10",
     "@radix-ui/react-collapsible": "1.2.1",

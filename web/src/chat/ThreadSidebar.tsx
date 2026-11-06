@@ -11,7 +11,7 @@ import {
   ChatConversationList,
   ChatConversationListGroup,
   ChatConversationListItem,
-} from "../components/ChatConversationList";
+} from "@langchain/macaw-components/ChatConversationList";
 import { groupThreads, relativeTime, type ThreadSummary } from "./threads";
 
 interface ThreadSidebarProps {
@@ -43,7 +43,7 @@ export function ThreadSidebar({
   const now = new Date();
   const groups = groupThreads(threads ?? [], now, query);
 
-  const state = threads === null ? "loading" : groups.length === 0 ? "empty" : ("ready" as const);
+  const noMatches = threads !== null && groups.length === 0 && query !== "";
 
   return (
     <nav className="flex h-full flex-col" aria-label="Conversations">
@@ -83,44 +83,39 @@ export function ThreadSidebar({
         </label>
       </div>
 
-      <ChatConversationList
-        aria-label="Recent conversations"
-        state={state}
-        emptyContent={
-          <Text variant="sm" color="tertiary">
-            {query ? "No matching threads." : "No conversations yet."}
-          </Text>
-        }
-        errorContent={
-          error ? (
-            <Text variant="sm" color="error">
-              {error}
-            </Text>
-          ) : undefined
-        }
-        className="min-h-0 flex-1 overflow-y-auto px-space-3 pb-space-3"
-      >
-        {groups.map((group) => (
-          <ChatConversationListGroup key={group.label} title={group.label} defaultOpen>
-            {group.threads.map((thread) => (
-              <ChatConversationListItem
-                key={thread.id}
-                title={thread.title}
-                titleContent={
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate">{thread.title}</span>
-                    <span className="text-xs text-tertiary">
-                      {relativeTime(thread.updatedAt, now)}
+      {noMatches ? (
+        <Text variant="sm" color="tertiary" className="p-space-8 text-center">
+          No matching threads.
+        </Text>
+      ) : (
+        <ChatConversationList
+          aria-label="Recent conversations"
+          loading={threads === null}
+          errorContent={error}
+          className="min-h-0 flex-1 overflow-y-auto px-space-3 pb-space-3"
+        >
+          {groups.map((group) => (
+            <ChatConversationListGroup key={group.label} title={group.label} defaultOpen>
+              {group.threads.map((thread) => (
+                <ChatConversationListItem
+                  key={thread.id}
+                  title={thread.title}
+                  titleContent={
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{thread.title}</span>
+                      <span className="text-xs text-tertiary">
+                        {relativeTime(thread.updatedAt, now)}
+                      </span>
                     </span>
-                  </span>
-                }
-                selected={thread.id === selectedId}
-                onClick={() => onSelect(thread.id)}
-              />
-            ))}
-          </ChatConversationListGroup>
-        ))}
-      </ChatConversationList>
+                  }
+                  selected={thread.id === selectedId}
+                  onClick={() => onSelect(thread.id)}
+                />
+              ))}
+            </ChatConversationListGroup>
+          ))}
+        </ChatConversationList>
+      )}
       {footer ? <div className="border-t border-default p-space-3">{footer}</div> : null}
     </nav>
   );

@@ -5,14 +5,14 @@ import { Button } from "@langchain/macaw-components/Button";
 import { Text } from "@langchain/macaw-components/Text";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { ChatConversation } from "../components/ChatConversation";
-import { ChatMessage, type ChatMessageContentBlock } from "../components/ChatMessage";
-import { ChatState } from "../components/ChatState";
+import { ChatConversation } from "@langchain/macaw-components/ChatConversation";
+import { ChatMessage, type ChatMessageContentBlock } from "@langchain/macaw-components/ChatMessage";
+import { ChatState } from "@langchain/macaw-components/ChatState";
 import {
   ChatToolCall,
   ChatToolCallGroup,
   type ChatToolCallModel,
-} from "../components/ChatToolCall";
+} from "@langchain/macaw-components/ChatToolCall";
 import { ASSISTANT_ID, type AgentEnvironment } from "../config";
 import { Composer } from "./Composer";
 import { FeedbackBar, type FeedbackDeps } from "./FeedbackBar";
@@ -84,9 +84,8 @@ export function ChatView(props: ChatViewProps) {
     <ChatConversation
       label="Conversation"
       className="h-full"
-      contentClassName="mx-auto w-full max-w-3xl px-space-3 py-space-4 sm:px-space-5"
       footer={
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-space-2 px-space-3 pb-space-3 sm:px-space-5">
+        <div className="flex flex-col gap-space-2">
           {error ? <Banner intent="error">{error}</Banner> : null}
           <Composer busy={stream.isLoading} onSend={send} onStop={() => void stream.stop()} />
         </div>
@@ -100,6 +99,7 @@ export function ChatView(props: ChatViewProps) {
             key={turn.id}
             turn={turn}
             runId={runsLoaded ? runIds[index] : undefined}
+            latest={index === turns.length - 1}
             streaming={stream.isLoading && index === turns.length - 1}
             feedback={feedback}
           />
@@ -112,11 +112,13 @@ export function ChatView(props: ChatViewProps) {
 function TurnView({
   turn,
   runId,
+  latest,
   streaming,
   feedback,
 }: {
   readonly turn: Turn;
   readonly runId: string | undefined;
+  readonly latest: boolean;
   readonly streaming: boolean;
   readonly feedback: FeedbackDeps;
 }) {
@@ -134,7 +136,7 @@ function TurnView({
   }
 
   return (
-    <div className="flex flex-col gap-space-4 pb-space-6">
+    <div className="flex flex-col gap-space-4">
       {turn.userText ? (
         <ChatMessage
           align="end"
@@ -149,13 +151,13 @@ function TurnView({
       ) : null}
       {blocks.length ? (
         <ChatMessage
-          isLatest={streaming}
+          isLatest={latest}
+          name="Chat LangChain Lite"
           message={{
             id: `${turn.id}:assistant`,
             role: "assistant",
             status: streaming ? "streaming" : "completed",
             readOnly: true,
-            identity: { name: "Chat LangChain Lite" },
             content: blocks,
           }}
           footer={
