@@ -1,14 +1,14 @@
 monorepo_root = true
 
 [monorepo]
-config_roots = ["agent", "web", "evals"]
+config_roots = ["agent", "web", "evals", "triage-sheet"]
 
 [tools]
-node = "26.13.0"
-pnpm = "12.14.0"
+node = "26.13.1"
+pnpm = "12.23.0"
 lefthook = "2.2.2"
-gh = "2.102.0"
-"github:langchain-ai/langsmith-cli" = "0.3.3"
+gh = "2.105.0"
+"github:langchain-ai/langsmith-cli" = "0.5.1"
 
 # Per-DE settings (LANGSMITH_WORKSPACE_ID) go in mise.local.toml. Secrets live only in agent/.env,
 # which mise deliberately does not load. Don't add [env] defaults here: they override CI's variables.
@@ -27,11 +27,11 @@ depends = ["//agent:dev", "//web:dev"]
 
 [tasks.check]
 description = "Format check, lint and typecheck every package"
-depends = ["//agent:check", "//web:check", "//evals:check"]
+depends = ["//agent:check", "//web:check", "//evals:check", "//triage-sheet:check"]
 
 [tasks.test]
 description = "Run unit tests for every package"
-depends = ["//agent:test", "//web:test", "//evals:test"]
+depends = ["//agent:test", "//web:test", "//evals:test", "//triage-sheet:test"]
 
 [tasks."demo:prepare"]
 description = "Seed the dataset, create evaluators, send traffic and pre-run experiments"

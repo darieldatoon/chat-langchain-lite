@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { ASSISTANT_ID, findAgent } from "./agent.ts";
 import { ApiError, type Api } from "./api.ts";
+import { findApp } from "./app.ts";
 import { DATASET_NAME } from "./dataset.ts";
 import { DEMO_EVALUATOR_NAMES } from "./evaluators.ts";
 import { QUEUE_NAME } from "./triage.ts";
@@ -68,6 +69,7 @@ export interface Inventory {
   readonly rules: readonly Item[];
   readonly prompts: readonly Item[];
   readonly queues: readonly Item[];
+  readonly apps: readonly Item[];
 }
 
 export type Section = keyof Inventory;
@@ -84,6 +86,7 @@ const TITLES: Record<Section, string> = {
   rules: "Rules (automations)",
   prompts: "Evaluator prompts",
   queues: "Annotation queues",
+  apps: "Custom apps",
 };
 
 const DISPLAY_ORDER: readonly Section[] = [
@@ -98,11 +101,13 @@ const DISPLAY_ORDER: readonly Section[] = [
   "prompts",
   "referenceDatasets",
   "queues",
+  "apps",
 ];
 
 // Nothing cascades downward, so dependents go first. A prompt deleted before its evaluator strands the evaluator where
 // the API can no longer delete it; a dataset deleted before its rules orphans them.
 export const DELETION_ORDER: readonly Section[] = [
+  "apps",
   "rules",
   "evaluators",
   "prompts",
@@ -494,6 +499,18 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
           };
     });
 
+  const app = await findApp(api);
+  const apps: Item[] = app
+    ? [
+        {
+          id: app.id,
+          name: app.name,
+          detail: "spreadsheet view of the triage queue",
+          removal: { api: "smith", path: `/platform/custom-apps/${app.id}` },
+        },
+      ]
+    : [];
+
   const experiments: Item[] = [];
   for (const dataset of [mainDataset, ...referenceDatasets].filter(Boolean))
     for (const session of await api.get<Named[]>("/sessions", {
@@ -532,5 +549,6 @@ export async function discoverInventory(api: Api, hostApi: Api): Promise<Invento
     rules: ruleItems,
     prompts,
     queues,
+    apps,
   };
 }

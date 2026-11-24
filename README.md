@@ -56,7 +56,7 @@ Then:
 | `mise run dev` | Run the agent and the web app locally |
 | `mise run check` | Format check, lint and typecheck |
 | `mise run test` | Unit tests |
-| `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators and triage queue, send sample traffic, and pre-run the experiments |
+| `mise run demo:prepare` | Seed the eval dataset, create the hosted evaluators, triage queue and its custom app, send sample traffic, and pre-run the experiments |
 | `mise run demo:install` | Set up, create both environments as GitHub-connected deployments, turn on previews and Engine fix verification, publish Pages, then run `demo:prepare` |
 | `mise run demo:trickle` | Send a few conversations with feedback to production, as the Trickle workflow does |
 | `mise run demo:check` | Check the deployed demo end to end, as the Health workflow does |
@@ -68,7 +68,7 @@ Then:
 `mise run demo:prepare` (or **Actions → Prepare demo**) gets a workspace ready for the demo. It's safe to re-run; finished work is skipped.
 
 1. Seeds the `chat-langchain-lite` dataset from `evals/dataset/examples.json`. Each example is a question plus assertions a correct answer must satisfy.
-2. Creates the hosted evaluators: the built-in Assertions judge, a Jev decision model for tone, a gpt-6-luna tone judge (`professional_tone_llm`) with an alignment queue for tuning it against human labels (on for experiments, attached but off for traces), a JavaScript check that answers cite the docs they searched, and LangSmith's Trajectory Accuracy judge on both tracing projects. It also creates a triage annotation queue that collects thumbs-down answers. The dataset, queue, evaluators and their prompts are tagged to the `chat-langchain-lite` agent, so they show up under it in LangSmith.
+2. Creates the hosted evaluators: the built-in Assertions judge, a Jev decision model for tone, a gpt-6-luna tone judge (`professional_tone_llm`) with an alignment queue for tuning it against human labels (on for experiments, attached but off for traces; its runs are traced, so each score links to the judge's reasoning), a JavaScript check that answers cite the docs they searched, and LangSmith's Trajectory Accuracy judge on both tracing projects. It also creates a triage annotation queue that collects thumbs-down answers, and pushes [`triage-sheet/`](triage-sheet/README.md), a custom app that shows that queue as a spreadsheet. The dataset, queue, evaluators and their prompts are tagged to the `chat-langchain-lite` agent, so they show up under it in LangSmith.
 3. Sends sample questions to `production`.
 4. Pre-runs three experiments: production, development, and development with gpt-6-luna.
 
@@ -108,6 +108,7 @@ Build changes in a fork, test them in your own LangSmith workspace, then open a 
    - creates the `maintainers` environment, so the Reset and Teardown workflows wait for your approval
    - turns on issues, where the Health workflow reports problems
    - publishes Pages and runs `demo:prepare`, creating the Engine board on production after its traffic so the first scan has traces to read (see [Engine fix verification](#engine-fix-verification))
+   - points the board at the Slack channel and Linear project in `agent/.env`, if any, and copies them to repo variables (see [Engine in Slack and Linear](#engine-in-slack-and-linear))
 
    Re-running skips what's done, but updates the deployments' secrets when they change; `--redeploy` rebuilds both environments. A workspace whose environments were deployed with the mda CLI needs `--replace` once: it deletes them and creates them again from GitHub, keeping their tracing projects and rules.
 4. Your app is at `https://<you>.github.io/<repo>/`.
@@ -131,6 +132,15 @@ Fix verification needs the `enable_engine_issue_validation` flag on the workspac
 
 Engine's fix PRs can't be merged: the `merge-guard` check stays pending on them. Show the verdict instead.
 
+### Engine in Slack and Linear
+
+Engine can post each new issue and fix PR to a Slack channel, and file each issue as a Linear ticket. Both are optional and set in `agent/.env`:
+
+- `ENGINE_SLACK_CHANNEL`: a public channel in a Slack workspace connected to the LangSmith org.
+- `ENGINE_LINEAR_TEAM` and, optionally, `ENGINE_LINEAR_PROJECT`: the team's key and a project name. First connect Linear in the Engine board's settings in LangSmith; only the UI can.
+
+Install and Reset point the board at them; Health checks it does. Deleting the board deletes its Linear connection, so after a Reset, connect Linear again and re-run `mise run demo:install`. Health fails until you do.
+
 ## Keeping the demo running
 
 Once installed, GitHub Actions keep the demo ready. They use the `LANGSMITH_API_KEY` repo secret; for a shared demo, make it a service key with the Editor role on the demo's workspace only.
@@ -138,8 +148,8 @@ Once installed, GitHub Actions keep the demo ready. They use the `LANGSMITH_API_
 | Workflow | When | What it does |
 |---|---|---|
 | Trickle | Every 4 hours | A few conversations with production, some with a follow-up and feedback, so there are always recent traces and evidence for Engine |
-| Health | Daily | Checks the deployments, sign-in, Pages, the tone judge, Engine and the schedules. While anything fails, one issue labeled `demo-health` stays open |
-| Reset | By hand, after approval | Closes Engine's fix PRs, replaces its board, sends traffic and refreshes the experiments. `main` and `development` stay as they are |
+| Health | Daily | Checks the deployments, sign-in, Pages, the tone judge, Engine and its Slack and Linear destinations, and the schedules. While anything fails, one issue labeled `demo-health` stays open |
+| Reset | By hand, after approval | Closes Engine's fix PRs, replaces its board with its Slack and Linear destinations, sends traffic and refreshes the experiments. `main` and `development` stay as they are |
 | Teardown | By hand, after approval | Runs `demo:uninstall --yes` |
 | Prepare demo | By hand | Runs `demo:prepare` |
 | Sync Gateway key | By hand, after approval | Copies the `LANGSMITH_GATEWAY_API_KEY` repo secret into both deployments, rebuilding any that change, then runs Health |

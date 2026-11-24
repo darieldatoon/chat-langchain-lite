@@ -255,6 +255,8 @@ export function toneLlmRule(datasetId: string, gatewaySecret = "LC_GATEWAY_KEY")
     dataset_id: datasetId,
     sampling_rate: 1,
     is_enabled: true,
+    // Rules default to untraced; the demo opens the tone judge's own trace.
+    is_tracing_disabled: false,
     create_alignment_queue: true,
     evaluators: [
       {
@@ -363,7 +365,10 @@ export async function ensureRule(
 export function sharedRule(
   target: RuleTarget,
   source: EnsureResult,
-  { enabled = true }: { readonly enabled?: boolean } = {},
+  {
+    enabled = true,
+    traced = false,
+  }: { readonly enabled?: boolean; readonly traced?: boolean } = {},
 ): RuleBody {
   if (!source.evaluatorId) throw new Error(`Rule ${source.name} has no evaluator to share.`);
   return {
@@ -371,6 +376,7 @@ export function sharedRule(
     ...targetFields(target),
     sampling_rate: 1,
     is_enabled: enabled,
+    is_tracing_disabled: !traced,
     evaluator_id: source.evaluatorId,
   };
 }

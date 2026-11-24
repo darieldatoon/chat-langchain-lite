@@ -2,6 +2,7 @@ packages:
   - agent
   - web
   - evals
+  - triage-sheet
 
 # pnpm 12 delays installing freshly published versions; LangChain's own packages ship often and are trusted.
 minimumReleaseAgeExclude:

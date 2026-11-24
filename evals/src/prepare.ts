@@ -11,6 +11,7 @@ import {
   type Deployment,
 } from "./agent.ts";
 import { createApi } from "./api.ts";
+import { pushApp } from "./app.ts";
 import { developmentGap, parseGitHubRepo } from "./branches.ts";
 import { readConfig, type Config } from "./config.ts";
 import { seedDataset, type SeedExample } from "./dataset.ts";
@@ -41,7 +42,7 @@ import { sendTraffic, type TrafficSummary } from "./traffic.ts";
 import { ensureTriage } from "./triage.ts";
 
 // Seeding always runs: every other step needs the dataset id, and it changes nothing when current.
-const STEPS = ["readiness", "evaluators", "triage", "traffic", "experiments"] as const;
+const STEPS = ["readiness", "evaluators", "triage", "app", "traffic", "experiments"] as const;
 type Step = (typeof STEPS)[number];
 
 const root = new URL("../", import.meta.url);
@@ -166,7 +167,13 @@ async function main() {
       for (const source of [tone, cites])
         results.push(await ensureRule(api, target, sharedRule(target, source)));
       // Off until someone turns it on: Jev already scores tone on every trace.
-      results.push(await ensureRule(api, target, sharedRule(target, toneLlm, { enabled: false })));
+      results.push(
+        await ensureRule(
+          api,
+          target,
+          sharedRule(target, toneLlm, { enabled: false, traced: true }),
+        ),
+      );
     }
     const trajectory = await ensureRule(
       api,
@@ -191,6 +198,12 @@ async function main() {
       development.tracerSessionId,
     ]);
     log("triage queue and rules ready");
+  }
+
+  if (steps.has("app")) {
+    const app = await pushApp(api, config);
+    log(`custom app ${app.status}`);
+    manifest.app = app;
   }
 
   const tagged = await tagAgentResources(api, dataset.id);

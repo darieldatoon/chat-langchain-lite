@@ -1,0 +1,15 @@
+[tasks.dev]
+description = "Preview the app in a local LangSmith sandbox; rebuilds on save"
+run = "pnpm run dev"
+
+[tasks.build]
+description = "Build the custom app into dist/bundle.js"
+run = "pnpm run build"
+
+[tasks.check]
+description = "Format check, lint, typecheck and build (Vite+)"
+run = ["pnpm run check", "pnpm run build"]
+
+[tasks.test]
+description = "Unit and component tests, at 100% coverage (Vite+)"
+run = "pnpm run test"

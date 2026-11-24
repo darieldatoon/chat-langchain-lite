@@ -24,6 +24,7 @@ const empty: Inventory = {
   rules: [],
   prompts: [],
   queues: [],
+  apps: [],
 };
 
 describe("deletionPlan", () => {
@@ -169,6 +170,7 @@ describe("discoverInventory", () => {
             name: "Evaluator: chat-langchain-lite-mwalker-production:professional_tone (ev9) – tone",
           },
         ];
+      if (path === "/platform/custom-apps") return [];
       if (path.startsWith("/repos/-/")) throw new ApiError(404, path, "");
       if (path === "/v2/deployments") return { resources: [] };
       throw new Error(`unexpected ${path}`);
@@ -215,7 +217,8 @@ describe("discoverInventory deployments", () => {
       if (handle || path === "/agents/chat-langchain-lite") throw new ApiError(404, path, "");
       if (path === "/platform/evaluators") return { evaluators: [] };
       if (path === "/repos/") return { repos: [] };
-      if (["/sessions", "/datasets", "/annotation-queues"].includes(path)) return [];
+      if (["/sessions", "/datasets", "/annotation-queues", "/platform/custom-apps"].includes(path))
+        return [];
       throw new Error(`unexpected ${path}`);
     });
     return discoverInventory(api, api);
@@ -262,6 +265,7 @@ describe("discoverInventory ownership", () => {
     extra: {
       repos?: object[];
       queues?: (offset: number) => object[];
+      apps?: object[];
       workspace?: object[];
       datasets?: object[];
       datasetRules?: Record<string, object[]>;
@@ -289,6 +293,7 @@ describe("discoverInventory ownership", () => {
       if (path.startsWith("/platform/evaluators/")) return evaluators[path.split("/").pop()!];
       if (path === "/repos/") return { repos: extra.repos ?? [] };
       if (path === "/annotation-queues") return extra.queues?.(Number(q.offset ?? 0)) ?? [];
+      if (path === "/platform/custom-apps") return extra.apps ?? [];
       if (path.startsWith("/repos/-/")) throw new ApiError(404, path, "");
       if (path === "/v2/deployments") return { resources: [] };
       throw new Error(`unexpected ${path}`);
@@ -396,5 +401,21 @@ describe("discoverInventory ownership", () => {
       },
     );
     expect(inventory.queues.map((item) => item.id)).toEqual(["triage"]);
+  });
+
+  it("deletes the workspace's custom app but not an org-shared one with the same name", async () => {
+    const name = "chat-langchain-lite-triage-sheet";
+    const inventory = await discover(
+      {},
+      {
+        apps: [
+          { id: "org-app", name, scope: "organization" },
+          { id: "app-1", name, scope: "workspace" },
+        ],
+      },
+    );
+    expect(inventory.apps).toEqual([
+      expect.objectContaining({ id: "app-1", removal: removal("/platform/custom-apps/app-1") }),
+    ]);
   });
 });

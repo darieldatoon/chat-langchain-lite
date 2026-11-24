@@ -1,4 +1,4 @@
-import type { ChatToolCallModel } from "../components/ChatToolCall";
+import type { ChatToolCallModel } from "@langchain/macaw-components/ChatToolCall";
 
 /** The fields we read from LangChain messages; live and reloaded threads both satisfy it. */
 export interface MessageLike {

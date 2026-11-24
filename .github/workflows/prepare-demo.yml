@@ -1,12 +1,12 @@
 name: Prepare demo
 
-# Seeds the eval dataset, creates the hosted evaluators and triage queue, sends realistic traffic
+# Seeds the eval dataset, creates the hosted evaluators, triage queue and its custom app, sends realistic traffic
 # to production, and pre-runs the experiments. Safe to re-run: finished work is skipped.
 on:
   workflow_dispatch:
     inputs:
       only:
-        description: "Steps to run (comma-separated: readiness,evaluators,triage,traffic,experiments). Blank runs all."
+        description: "Steps to run (comma-separated: readiness,evaluators,triage,app,traffic,experiments). Blank runs all."
         required: false
         default: ""
       split:
